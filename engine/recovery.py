@@ -31,6 +31,7 @@ def semantic_fingerprint(config):
         'normalization': config['normalization'],
         'demo': {key: settings.get(key) for key in {
             'state_kind', 'order_schema_version', 'transaction_schema', 'order_max_items',
+            'collection_min_items', 'collection_max_items', 'collection_label',
             'required_slots', 'task_scope', 'readback_order', 'readback_formats',
             'labels', 'values', 'questions'}},
     }
@@ -41,8 +42,7 @@ def semantic_fingerprint(config):
 def restore_values(config, values):
     """Rebuild a new adapter using validated, internally derived operations."""
     from engine.demo_validation import validate_demo_config
-    from engine.demo_order import DemoOrderState
-    from engine.scoped_task import ScopedTaskState
+    from engine.task_factory import make_task
 
     if not config.get('demo') or not isinstance(values, dict):
         raise RecoveryError(RECOVERY_ERROR)
@@ -50,18 +50,18 @@ def restore_values(config, values):
     if len(json.dumps(values, ensure_ascii=False, allow_nan=False).encode('utf-8')) > 65536:
         raise RecoveryError(RECOVERY_ERROR)
     settings = config['demo']
+    task = make_task(config)
     if settings['state_kind'] == 'flat_scoped':
-        task = ScopedTaskState(config)
         task.apply([{'op': 'set', 'slot': key, 'value': deepcopy(value)}
                     for key, value in values.items()])
-    elif settings['state_kind'] == 'collection_scoped':
-        task = DemoOrderState(config)
+    elif settings['state_kind'] in {'collection_scoped', 'configured_collection_scoped'}:
         schema = settings['transaction_schema']
         collection = schema['collection']
         if set(values) - {collection, *schema['root_slots']}:
             raise RecoveryError(RECOVERY_ERROR)
         rows = values.get(collection, [])
-        if not isinstance(rows, list) or len(rows) > settings['order_max_items']:
+        maximum = settings['collection_max_items'] if settings['state_kind'] == 'configured_collection_scoped' else settings['order_max_items']
+        if not isinstance(rows, list) or len(rows) > maximum:
             raise RecoveryError(RECOVERY_ERROR)
         identifiers = set()
         operations = []
@@ -76,7 +76,10 @@ def restore_values(config, values):
                               for key, value in row.items() if key != 'id')
         operations.extend(dict(op='set', item_id=None, slot=key, value=deepcopy(value))
                           for key, value in values.items() if key != collection)
-        task.apply(operations)
+        # The new task remains private until all validated reconstruction batches
+        # finish; large saved states need not fit in one router-turn operation cap.
+        for offset in range(0, len(operations), 40):
+            task.apply(operations[offset:offset + 40])
     else:
         raise RecoveryError(RECOVERY_ERROR)
     task.invalidate_confirmation()

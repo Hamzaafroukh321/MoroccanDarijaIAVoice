@@ -224,12 +224,22 @@ def flat_scoped_demo(config):
     return config.get('demo', {}).get('state_kind') == 'flat_scoped'
 
 
+def configured_collection_demo(config):
+    return config.get('demo', {}).get('state_kind') == 'configured_collection_scoped'
+
+
 def response_model(config):
+    if configured_collection_demo(config):
+        from engine.collection_routing import CollectionRouterResponse
+        return CollectionRouterResponse
     if flat_scoped_demo(config): return ScopedTaskRouterResponse
     return DemoOrderRouterResponse if order_demo(config) else DemoRouterResponse if config.get('demo') else RouterResponse
 
 
 def parse_response(raw, config):
+    if configured_collection_demo(config):
+        from engine.collection_routing import parse_collection_response
+        return parse_collection_response(raw, config)
     response=response_model(config).model_validate_json(raw)
     slots={slot['id']:slot for slot in config['slots']}
     if flat_scoped_demo(config) and response.clarification is not None:
@@ -250,6 +260,9 @@ def parse_response(raw, config):
 
 
 def response_format(config):
+    if configured_collection_demo(config):
+        from engine.collection_routing import collection_response_format
+        return collection_response_format(config)
     schema = response_model(config).model_json_schema()
     if 'discard_request' in schema['properties']:
         # Historical saved responses may omit this field; new constrained API
@@ -315,6 +328,9 @@ discard_request is normally null. If pending_request.clarification_resolved=true
 
 
 def build_prompt(config, state, transcript):
+    if configured_collection_demo(config):
+        from engine.collection_routing import collection_prompt
+        return collection_prompt(config, state, transcript) + RETAINED_REQUEST_RULE
     if flat_scoped_demo(config):
         slots = [{k:v for k,v in slot.items() if k in {'id','type','values','aliases','min','max'}} for slot in config['slots']]
         return '''Route Moroccan Darija task requests into the supplied JSON schema. Never generate dialogue.
@@ -378,7 +394,7 @@ Do not treat unsupported products or meta-conversation as an instruction to eras
 def build_messages(config, state, transcript):
     context=deepcopy(state)
     history=[]
-    if order_demo(config) or flat_scoped_demo(config):
+    if order_demo(config) or flat_scoped_demo(config) or configured_collection_demo(config):
         proposal=context.get('pending_proposal')
         if proposal is not None:
             context['committed_state']=deepcopy(context['state'])
@@ -450,8 +466,11 @@ class Router:
                 validate_temporal_grounding(parsed, transcript, self.config, state)
                 validation_stage = 'explicit_enum_alternatives'
                 validate_enum_alternatives(parsed, transcript, self.config)
-                if order_demo(self.config) or flat_scoped_demo(self.config):
-                    if flat_scoped_demo(self.config):
+                if order_demo(self.config) or flat_scoped_demo(self.config) or configured_collection_demo(self.config):
+                    if configured_collection_demo(self.config):
+                        from engine.collection_task import ConfiguredCollectionState
+                        matches = ConfiguredCollectionState.resolution_matches
+                    elif flat_scoped_demo(self.config):
                         from engine.scoped_task import ScopedTaskState
                         matches = ScopedTaskState.resolution_matches
                     else:

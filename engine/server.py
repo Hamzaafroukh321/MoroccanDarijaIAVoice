@@ -133,7 +133,7 @@ async def index(domain: str='pizza', bank: str='', overwrite: bool=False, mode: 
     public.update({'domain_id':domain,'domain_title':selected['display_name'],'domains':available_domains(),'voice_issues':voice_issues(selected),'bank_target':bank,'bank_overwrite':overwrite,'bank_text':bank_manifest(selected).get(bank,''),'max_session_ms':selected['engine']['max_session_ms']})
     public.update(demo_issues=demo_issues(selected), demo_supported=demo_supported(selected),
                   demo_asr_label=demo_asr_label(selected),
-                  demo_ui={}, demo_labels={}, demo_values={}, demo_state_kind=None,
+                  demo_ui={}, demo_labels={}, demo_values={}, demo_state_kind=None, demo_collection=None,
                   initial_mode=mode if mode in {'capture','demo','voice'} else 'capture')
     if demo_supported(selected):
         try:
@@ -145,6 +145,12 @@ async def index(domain: str='pizza', bank: str='', overwrite: bool=False, mode: 
             public['demo_labels']=preview['demo']['labels']
             public['demo_values']=preview['demo']['values']
             public['demo_state_kind']=preview['demo']['state_kind']
+            if preview['demo']['state_kind'] == 'configured_collection_scoped':
+                settings = preview['demo']
+                schema = settings['transaction_schema']
+                public['demo_collection'] = dict(name=schema['collection'], label=settings['collection_label'],
+                    root_slots=schema['root_slots'], item_slots=schema['item_slots'],
+                    min_items=settings['collection_min_items'], max_items=settings['collection_max_items'])
         except DemoConfigError as exc:
             public['demo_issues'].append(str(exc))
         except (ValueError,OSError,KeyError,TypeError) as exc:

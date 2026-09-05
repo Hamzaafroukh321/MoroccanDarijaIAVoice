@@ -41,19 +41,18 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    context_bridge_live_22fb1c415702419caeea97ae8bd4d7ea.json. Native benefit remains
    unproven. No more synthetic prompt searches or repeated green context calls.
 
-   **Next independent offline step:** implement the first contract slice from
-   bench/results/configured_collections_design_20260906.md. The design audit is
-   complete: transactions.py already supports arbitrary collections, but the
-   surrounding collection dialogue/router/render/recovery remains pizza-specific.
-   A fictional equipment collection with asset/quantity and root return_date is
-   blocked by the explicit constructor/profile guards. Add an explicit separate
-   configured_collection_scoped adapter/factory in bounded stages, retaining the
-   existing pizza path. Start with profile validation and state/kernel fixtures
-   under original and renamed IDs, then dialogue/render/recovery. Preserve row
-   identity, atomic updates, draft isolation, corrections and fresh confirmation.
-   Cross-row coupled dependencies require addresses, so do not silently reuse
-   flat coupled_slots. Do not copy pizza logic, alter existing successful voice
-   scripts, or claim a shipped third voice demo from fixtures.
+   Completed: configured_collection_scoped now supports one configurable
+   collection with root fields through transactions, a shared task factory,
+   strict routing, dialogue, readback, UI and committed-only recovery. Temporary
+   English equipment fixtures and renamed controls verify row identity, atomic
+   updates, draft isolation, corrections and fresh confirmation. Nine mocked
+   browser checks passed. This is not a shipped third voice demo.
+
+   **Next independent offline step:** examine cross-row linked-choice semantics
+   with explicit row/field addresses before extending the clarification contract.
+   Start with a bounded failure fixture and design review. The current adapter
+   rejects flat coupled_slots; do not silently infer dependent alternatives or
+   alter the existing successful pizza/clinic speech scripts.
    Native speech quality still needs owner-supplied reviewed cases/recordings.
 
    Completed: explicit coupled_slots in flat clarification, atomic staged answers,

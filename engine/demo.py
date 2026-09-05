@@ -69,8 +69,8 @@ def demo_config(config):
         settings = {key:deepcopy(value) for key,value in shared.items()
                     if key.startswith('tts_') or key in common}
         settings.update(json.loads(profile_path.read_text(encoding='utf-8')))
-        if settings.get('state_kind') != 'flat_scoped':
-            raise DemoConfigError('Additional task previews must use flat_scoped; custom collection adapters are not configured.')
+        if settings.get('state_kind') not in {'flat_scoped', 'configured_collection_scoped'}:
+            raise DemoConfigError('Additional task previews require flat_scoped or configured_collection_scoped.')
         if settings.get('order_schema_version') is not None:
             raise DemoConfigError('A flat task preview cannot select the pizza order schema adapter.')
     provider=os.getenv('DEMO_TTS_PROVIDER','groq').strip().lower()
@@ -136,7 +136,18 @@ def readback_parts(values, settings):
     pieces = [settings['readback_prefix']]
     collection = settings.get('state_kind') == 'collection_scoped' or (
         'state_kind' not in settings and settings.get('order_schema_version') == 2)
-    if collection and 'items' in values:
+    if settings.get('state_kind') == 'configured_collection_scoped':
+        schema = settings['transaction_schema']
+        order = settings['readback_order']
+        for index, item in enumerate(values.get(schema['collection'], []), 1):
+            pieces.append(settings['collection_label'] + ' ' + str(index) + '.')
+            for key in order:
+                if key in schema['item_slots'] and key in item:
+                    pieces.append(settings['labels'][key] + ': ' + _readback_value(key, item[key], settings) + '.')
+        for key in order:
+            if key in schema['root_slots'] and key in values:
+                pieces.append(settings['labels'][key] + ': ' + _readback_value(key, values[key], settings) + '.')
+    elif collection and 'items' in values:
         for index, item in enumerate(values['items']):
             pieces.append(settings['item_label'] + ' ' + str(index + 1) + '.')
             for key in ('quantity', 'size', 'toppings'):
@@ -158,6 +169,21 @@ def readback_parts(values, settings):
 
 
 def reply_text(action, values, settings):
+    if settings.get('state_kind') == 'configured_collection_scoped':
+        schema = settings['transaction_schema']
+        rows = values.get(schema['collection'], [])
+        prefix = ''
+        if action.item_id is not None:
+            index = next((i for i, row in enumerate(rows, 1) if row['id'] == action.item_id), len(rows) + 1)
+            prefix = settings['collection_label'] + ' ' + str(index) + '. '
+        if action.kind in {'item_reference', 'ambiguous'}:
+            return settings['responses']['item_reference']
+        if action.slot and action.kind in {'ask', 'repair', 'ambiguous_value', 'unintelligible'}:
+            return prefix + settings['questions'][action.slot]
+        if action.kind == 'unsupported_value' and action.slot:
+            options = settings.get('menu_options', {}).get(action.slot, [])
+            return prefix + settings['responses']['unsupported_option'] + ' ' + (
+                '، '.join(options) + '.' if options else settings['questions'][action.slot])
     if action.kind == 'unsupported_value' and action.slot:
         options = settings.get('menu_options',{}).get(action.slot,[])
         return settings['responses']['unsupported_option']+' '+(

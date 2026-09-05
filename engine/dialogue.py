@@ -69,6 +69,10 @@ class ScopedDialogue:
     def _requires_proposal(self, clarification):
         return False
 
+    def _clarification_for_proposal(self, clarification, proposal):
+        """Adapters with new draft rows may validate scope against the preview."""
+        return self._clarification(clarification)
+
     def _plan_resolution(self, operations):
         """Optional validated continuation; None keeps the normal commit path."""
         return None
@@ -131,7 +135,7 @@ class ScopedDialogue:
         if clarification is not None:
             if operations or yes or no:
                 raise ValueError('A new clarification cannot change or confirm the task.')
-            pending = self._clarification(clarification)
+            pending = self._clarification_for_proposal(clarification, proposal)
             if self.pending_clarification is None:
                 # Keep the first unresolved question aligned with its retained
                 # transcript. A later failure cannot replace it with an easier

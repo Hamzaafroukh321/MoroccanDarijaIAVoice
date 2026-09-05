@@ -1,8 +1,11 @@
-# Add a flat voice task
+# Add a voice task
 
-A new flat task needs two local configuration files. It does not need an engine
-registry edit, a new router implementation or a copied voice pipeline. Pizza
-continues to use its collection adapter; this extension supports flat tasks.
+A new task needs two local configuration files. It does not need an engine
+registry edit, a new router implementation or a copied voice pipeline. Choose
+`flat_scoped` for one set of fields, or `configured_collection_scoped` for one
+collection of rows plus shared root fields. Pizza keeps its existing adapter.
+
+## Configure a flat task
 
 1. Copy `configs/clinic.json` to `configs/<task-id>.json`. Use the same safe,
    lowercase ID in `domain_id` and the filename, such as `service-desk`. Set
@@ -45,6 +48,71 @@ Missing/malformed profiles produce setup issues before speaking. Invalid base
 configs and filename/ID mismatches are excluded from discovery; requesting an
 invalid domain directly fails. They do not prevent other valid domains starting.
 
+## Configure a collection task
+
+Use the same base/profile file pair and discovery procedure above. Define the
+row fields and shared root fields as ordinary base `slots`, then select them in
+the demo profile's `fields`. Replace the flat profile's structural settings with
+the following pattern. This English equipment example illustrates the contract;
+it is not a complete configuration or a reviewed Darija task.
+
+```json
+{
+  "state_kind": "configured_collection_scoped",
+  "fields": ["asset", "quantity", "return_date"],
+  "required_slots": ["asset", "quantity", "return_date"],
+  "transaction_schema": {
+    "collection": "reservations",
+    "root_slots": ["return_date"],
+    "item_slots": ["asset", "quantity"],
+    "exclusive_values": {}
+  },
+  "collection_min_items": 1,
+  "collection_max_items": 10,
+  "collection_label": "Reservation"
+}
+```
+
+The collection name must differ from every selected field and the reserved name
+`id`. Row and root field IDs must also differ from `id`. `root_slots` and
+`item_slots` must partition all selected fields exactly once, without overlap or
+duplicates. Root fields may be empty; row fields may not, and at least one row
+field must be required after overrides. `collection_min_items` is currently
+exactly `1`; `collection_max_items` is an integer from `1` through `10`. Do not
+set `order_schema_version`, which belongs to the legacy pizza adapter.
+
+Supply a nonempty `collection_label` for the spoken and displayed row label.
+Keep every selected field's question, label and readback entry, and add a
+task-appropriate `responses.item_reference` line for asking which row the user
+means. The shared responses, including `ambiguous_value`, `unsupported_value`
+and `unintelligible`, are still required. Supply `readback_prefix`,
+`readback_question`, and a `readback_order` containing every selected field once.
+The renderer groups row fields under the collection label and reads shared root
+fields separately. Optional `readback_formats` support `day_month_year` for date
+fields and `24_hour` for time fields. `exclusive_values`, when used, applies only
+to configured root `enum_list` fields. Keep draft language visibly unreviewed.
+
+The resulting state has a named list of objects with stable positive `id`
+values, alongside root fields. Row operations target those IDs; root operations
+use `item_id: null`. IDs survive deletion and are not renumbered. Displayed and
+spoken positions follow the remaining list: rows with IDs `2` and `3` are shown
+as the first and second rows after row `1` is deleted. The router receives that
+position-to-ID mapping. An `item_reference` clarification names explicit
+candidate IDs instead of silently choosing a row.
+
+Clear portions of a request can stay in a separate pending proposal while an
+unsupported or ambiguous value is resolved. The proposed rows and root values
+do not change committed state. A valid answer must address the current question
+ID and its field/row scope; stale or invalid answers retain the pending details.
+Committing a resolved draft still requires a fresh completed readback and a
+separate confirmation. No reservation, payment or other external action occurs.
+
+Run the same offline `scripts/check_config.py <base-config> --demo` validation
+before opening the task. The temporary fixtures in
+`tests/collection_fixtures.py` also show a fully populated base/profile pair and
+a version with renamed collection and field IDs. They remain English engineering
+fixtures; do not ship their diagnostic text as Darija speech.
+
 ## Verify the new task
 
 Use the [multi-turn replay guide](../bench/VOICE_REPLAY.md) for supplied WAVs and
@@ -65,11 +133,25 @@ the group commits only after its fields are answered. Unrelated saved values
 remain intact. This depends on the router declaring the relationship; test the
 domain's actual wording rather than assuming schema validation proves meaning.
 
-The temporary English service-counter fixture proves field/schema/readback/UI
-extensibility locally. It is not a shipped third voice demo or an ASR result.
-Custom collections, nested task stacks, external bookings and arbitrary slot
-types remain outside this extension. Use the field types supported by the base
-configuration schema and its runtime validation.
+For collections, also check adding two rows, correcting just one, deleting the
+first row and referring to the remaining first row, asking which row was meant,
+resolving a proposed new row, cancellation, stale answers and final confirmation.
+Verify that a failed operation leaves the whole transaction unchanged and that
+required root details are requested independently of required row details.
+
+The temporary English service-counter and equipment fixtures establish local
+field/schema/readback/UI behavior. The collection browser probe mocks its
+configuration, microphone and transport; it checks stable IDs, visible row
+positions, draft separation and desktop/mobile rendering with no provider calls.
+These fixtures are not shipped voice demos, native language validation or ASR
+accuracy results. Test supplied audio through actual MoulSot separately.
+
+Configured collections currently support one collection only. Multiple or nested
+collections, cross-row coupled alternatives and `coupled_slots` clarifications
+for collection tasks are unsupported; the linked-field mechanism described
+above applies to flat tasks. Nested task stacks, external bookings and arbitrary
+slot types also remain outside this extension. Use the field types supported by
+the base configuration schema and its runtime validation.
 
 An optional [local MoulSot vocabulary experiment](../deploy/local-moulsot/README.md#optional-vocabulary-experiment)
 uses `stt.moulsot_context` in the selected task's base configuration. It is off by

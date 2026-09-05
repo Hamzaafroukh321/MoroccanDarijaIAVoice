@@ -41,6 +41,7 @@ const demoUI = {
 const demoLabels = config.demo_labels || {};
 const demoValues = config.demo_values || {};
 const demoStateKind = config.demo_state_kind ?? (config.domain_id === 'pizza' ? 'collection_scoped' : 'flat_scoped');
+const demoCollection = config.demo_collection;
 document.getElementById('demo-voice-label').textContent = `${config.demo_asr_label || 'MoulSot'} · Synthetic voice: ${config.demo_tts_voice_label || 'Arabic'}`;
 document.getElementById('xtts-license').hidden = config.demo_tts_provider !== 'darija_xtts';
 if (Array.isArray(config.domains)) {
@@ -456,6 +457,7 @@ function renderTaskDetails(values, target) {
     const detail = document.createElement('dd'); detail.dir = 'auto'; detail.textContent = value;
     target.append(term, detail);
     rows += 1;
+    return { term, detail };
   }
   if (demoStateKind === 'collection_scoped' && Array.isArray(values.items)) {
     values.items.forEach((item, index) => {
@@ -466,6 +468,24 @@ function renderTaskDetails(values, target) {
     return rows;
   }
   const displayValue = value => Object.hasOwn(demoValues, String(value)) ? String(demoValues[String(value)]) : String(value);
+  if (demoStateKind === 'configured_collection_scoped' && demoCollection) {
+    const label = key => demoLabels[key] ?? key.replaceAll('_', ' ');
+    const formatted = value => value === undefined || value === null ? 'not specified' :
+      Array.isArray(value) ? (value.length ? value.map(displayValue).join(', ') : 'None') : displayValue(value);
+    const items = Array.isArray(values[demoCollection.name]) ? values[demoCollection.name] : [];
+    if (!items.length) row(label(demoCollection.name), 'No items added yet.');
+    items.forEach((item, index) => {
+      // The ordinal is how users refer to the visible list; the ID stays stable after deletion.
+      const entry = row(`${demoCollection.label} ${index + 1}`,
+        demoCollection.item_slots.map(key => `${label(key)}: ${formatted(item[key])}`).join(' · '));
+      entry.term.dataset.itemId = String(item.id);
+      entry.detail.dataset.itemId = String(item.id);
+    });
+    for (const key of demoCollection.root_slots) {
+      if (Object.hasOwn(values, key)) row(label(key), formatted(values[key]));
+    }
+    return rows;
+  }
   for (const [key, value] of Object.entries(values)) {
     row(demoLabels[key] ?? key.replaceAll('_', ' '), Array.isArray(value) ? value.map(displayValue).join(', ') : displayValue(value));
   }
@@ -530,7 +550,7 @@ function handleVoiceEvent(session, result) {
     clearTimeout(session.timer); current = null;
     session.socket.close(); void releaseMicrophone(session).catch(console.error);
     showSlots(result.slots);
-    const label = result.status === 'demo_completed' ? (config.domain_id === 'pizza' ? 'Demo order confirmed' : 'Preferences confirmed') : result.status === 'completed' ? 'Task confirmed' : result.status === 'handoff' ? 'Handoff requested' : 'Session ended';
+    const label = result.status === 'demo_completed' ? (config.domain_id === 'pizza' ? 'Demo order confirmed' : demoStateKind === 'configured_collection_scoped' ? 'Demo task confirmed' : 'Preferences confirmed') : result.status === 'completed' ? 'Task confirmed' : result.status === 'handoff' ? 'Handoff requested' : 'Session ended';
     display(label, result.status === 'demo_completed' ? demoUI.completion_text : result.status === 'completed' ? 'Your confirmed details have been saved on this computer.' : 'This task was not marked as successfully completed.', 'Start another session');
   } else return false;
   return true;

@@ -133,17 +133,8 @@ class VoiceSession:
         self.stt=stt; self.router=router; self.bank=bank; self.vad=vad
         self.emit=emit; self.emit_audio=emit_audio
         self.session_id=uuid4().hex
-        if config.get('demo'):
-            if config['demo'].get('state_kind') == 'flat_scoped':
-                from engine.scoped_task import ScopedTaskState
-                self.task=ScopedTaskState(config)
-            elif config['demo'].get('order_schema_version') == 2:
-                from engine.demo_order import DemoOrderState
-                self.task=DemoOrderState(config)
-            else:
-                from engine.demo import DemoTaskState
-                self.task=DemoTaskState(config)
-        else: self.task=TaskState(config)
+        from engine.task_factory import make_task
+        self.task=make_task(config)
         self.detector=EndpointDetector(config)
         self.mode=TurnState.IDLE
         self.audio_time_ms=0
@@ -331,6 +322,13 @@ class VoiceSession:
         self.playback_done=asyncio.Event()
         version=self.task.version
         values=deepcopy(self.task.values)
+        if (self.config.get('demo', {}).get('state_kind') == 'configured_collection_scoped' and
+                action.kind in {'ask', 'repair', 'ambiguous_value', 'unsupported_value', 'unintelligible'} and
+                self.task.pending_proposal is not None):
+            # A question about the fourth proposed row must say "fourth", not
+            # the next committed row number. Only question rendering sees this
+            # preview; readback/confirmation always use committed values.
+            values=deepcopy(self.task.pending_proposal['state'])
         mode=TurnState.CONFIRMING if action.kind=='readback' else TurnState.CLARIFYING if action.kind=='clarify_overlap' else TurnState.SPEAKING
         await self.set_mode(mode)
         self.playback_task=asyncio.create_task(self._play(action,values,version,playback_id))

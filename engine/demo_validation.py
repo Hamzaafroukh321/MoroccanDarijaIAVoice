@@ -43,8 +43,14 @@ def validate_demo_config(config):
             raise DemoConfigError(f'demo.ui.{key} is required for the task preview.')
     slots = {slot['id']: slot for slot in config['slots']}
     kind = settings.get('state_kind')
-    if kind not in {'flat_scoped', 'collection_scoped'}:
-        raise DemoConfigError('demo.state_kind must be flat_scoped or collection_scoped.')
+    if kind not in {'flat_scoped', 'collection_scoped', 'configured_collection_scoped'}:
+        raise DemoConfigError('Unsupported demo.state_kind.')
+    if kind == 'configured_collection_scoped':
+        from engine.collection_schema import validate_collection_schema
+        try:
+            validate_collection_schema(config)
+        except ValueError as exc:
+            raise DemoConfigError(str(exc)) from exc
     schema = settings.get('transaction_schema')
     if not isinstance(schema, dict):
         raise DemoConfigError('demo.transaction_schema must be an object.')
@@ -73,8 +79,10 @@ def validate_demo_config(config):
         _text(settings.get(key), f'demo.{key}')
     response_keys = {'greeting', 'accepted', 'handoff', 'listen', 'not_understood',
                      'clarify_overlap', 'unsupported_option', 'unintelligible'}
-    if kind == 'flat_scoped':
+    if kind in {'flat_scoped', 'configured_collection_scoped'}:
         response_keys.update({'unsupported_value', 'ambiguous_value'})
+        if kind == 'configured_collection_scoped':
+            response_keys.add('item_reference')
         order = settings.get('readback_order', list(labels))
         if (not isinstance(order, list) or
                 any(not isinstance(key, str) for key in order) or

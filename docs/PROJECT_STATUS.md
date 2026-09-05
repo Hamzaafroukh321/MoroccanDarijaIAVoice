@@ -19,8 +19,10 @@ the pizza demo does not place orders.
   healthy speech services. Real service failures and STOP still close owned jobs.
 - Synthetic Darija XTTS demo voice, local reply caching and optional semantic
   readback grouping. Whole summaries remain the default pending quality review.
-- Configured flat tasks and pizza collections with validated operations,
-  correction handling and separate pending/committed values.
+- Configured flat tasks, pizza collections and an opt-in configurable collection
+  adapter with validated operations, correction handling and separate pending/
+  committed values. A collection can contain repeated rows plus shared root fields;
+  its router, readback, UI and recovery use the configured field names.
 - Conditional clarification schema: ambiguous values require an affected field.
   Dependent alternatives are not silently selected or committed.
 - Explicit **Continue saved details** after an eligible provider failure. Recovery
@@ -32,9 +34,13 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1001 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1071 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
+Nine additional mocked-browser collection checks cover distinct rows, pending
+previews, configured labels and desktop/mobile layout. Temporary English equipment
+fixtures test original and renamed field IDs; they are not a shipped voice domain.
+Cross-row coupled choices are not supported by the new collection adapter yet.
 The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.
