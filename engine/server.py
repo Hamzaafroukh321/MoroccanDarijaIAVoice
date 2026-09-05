@@ -24,6 +24,7 @@ from engine import lexicon
 from engine.demo import DemoVoice, demo_config, demo_supported, azure_speech_url, DEMO_TTS_PROVIDERS
 from engine.demo_validation import DemoConfigError
 from engine.recovery import RecoveryStore, RecoveryError, RECOVERY_ERROR
+from engine.moulsot_context import configured_context, validate_context_target
 
 
 load_dotenv(ROOT / ".env")
@@ -77,6 +78,8 @@ def available_domains():
 
 def voice_issues(selected):
     issues=[]
+    if configured_context(selected['stt']):
+        issues.append('Disable experimental MoulSot vocabulary for reviewed research sessions; it is supported only in the local demo.')
     if lexicon.NEEDS_HUMAN_REVIEW: issues.append('Review the supplied Darija markers in engine/lexicon.py.')
     if not os.getenv('GROQ_API_KEY'): issues.append('Set GROQ_API_KEY for the slot router.')
     if os.getenv('STT_PRIMARY','moulsot')=='moulsot' and not os.getenv('MOULSOT_ENDPOINT'):
@@ -94,6 +97,11 @@ def demo_issues(selected):
     protocol = os.getenv('MOULSOT_PROTOCOL', '').strip() or selected['stt']['moulsot_protocol']
     if protocol not in {'json', 'gradio'}:
         issues.append('Set MOULSOT_PROTOCOL to json or gradio.')
+    try:
+        validate_context_target(configured_context(selected['stt']), demo=True,
+            primary='moulsot', fallback=False, protocol=protocol, endpoint=os.getenv('MOULSOT_ENDPOINT', ''))
+    except ValueError as exc:
+        issues.append(str(exc))
     provider=os.getenv('DEMO_TTS_PROVIDER','groq').strip().lower()
     if provider not in DEMO_TTS_PROVIDERS:
         issues.append('Set DEMO_TTS_PROVIDER to darija_xtts, azure, elevenlabs or groq.')
@@ -112,7 +120,8 @@ def demo_asr_label(selected):
         host = urlsplit(os.getenv('MOULSOT_ENDPOINT', '')).hostname
     except ValueError:
         host = None
-    return 'MoulSot on this computer' if protocol == 'json' and host in {'127.0.0.1', 'localhost', '::1'} else 'Hosted MoulSot'
+    label = 'MoulSot on this computer' if protocol == 'json' and host in {'127.0.0.1', 'localhost', '::1'} else 'Hosted MoulSot'
+    return label + (' · experimental vocabulary' if configured_context(selected['stt']) else '')
 
 
 @app.get('/')

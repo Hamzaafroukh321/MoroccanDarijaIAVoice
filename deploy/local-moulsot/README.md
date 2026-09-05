@@ -106,6 +106,17 @@ child PIDs, logs, `selected_device` and whether hosted recovery occurred. The
 selected device describes the local configuration; `mode` separately records
 whether the supervisor is currently local or has recovered to hosted MoulSot.
 
+Status snapshots are atomic and best effort. Brief Windows sharing locks receive
+at most three attempts with 150 ms total retry delay per destination. Persistent
+status-write failures do not stop healthy speech services or activate hosted
+fallback: the supervisor keeps checking its owned processes, resource guards and
+STOP marker. Current and per-run JSON snapshots are independent, and stderr logs
+an outage/recovery transition instead of repeating a warning every poll. Check
+`updated_at` before relying on a snapshot; a locked destination can be stale.
+Available snapshots expose `status_publication_unavailable` and a cumulative
+`status_publication_failures` count. Real service failures still close the owned
+Windows job even when final status cannot be published.
+
 Stop using Ctrl+C when foreground, or create `.local/moulsot/STOP` when hidden.
 The supervisor closes its Windows job and all owned descendants; this can
 interrupt an active conversation before its final report saves. Remove that
@@ -121,3 +132,44 @@ Do not run it alongside the supervised model on the same ports.
 The live clinic WebSocket exchange and browser configuration now pass; see
 [live evidence](../../bench/results/local_voice_live_20260905.md). Native
 multi-turn accuracy and sustained resource stability are still open.
+
+## Optional vocabulary experiment
+
+Ordinary sessions send no vocabulary context. For controlled **demo-only**
+experiments, the selected task's base configuration may include this inside `stt`:
+
+```json
+"moulsot_context": {
+  "enabled": false,
+  "terms": ["الطبيب ألف", "الطبيب باء"]
+}
+```
+
+These example terms are draft synthetic-clinic labels, not reviewed language.
+Use a small symmetric vocabulary of task options, never an expected answer or
+conversation history. There is no global vocabulary environment variable or
+browser-supplied session prompt. Current shipped configs omit this setting.
+Terms are copied from the selected configuration for each adapter instance.
+
+Explicitly enabling a nonempty list requires demo mode, MoulSot as the only
+recognizer, fallback disabled, JSON protocol, and the exact endpoint
+`http://127.0.0.1:8012/transcribe`. Unsupported targets fail setup before inference;
+reviewed research sessions reject enabled nonempty context. The page labels an
+enabled experiment. Empty or disabled context keeps existing requests unchanged.
+
+The configuration accepts at most eight distinct, trimmed, nonempty terms,
+totalling at most 160 characters when joined by `، `. Control characters and
+angle brackets are rejected. The bridge accepts one WAV and at most one bounded
+UTF-8 `context` form field. It prepends that string as a system message while
+keeping the audio payload and decoding settings unchanged. Responses acknowledge
+the exact forwarded string with `context_sha256`; the adapter rejects missing or
+mismatched acknowledgment. This proves forwarding, not model compliance or
+improved recognition. Ordinary transcript wording is never repaired from hints.
+
+Local call evidence records the terms, hash, experimental flag and `applied`
+acknowledgment, including failures. Controlled tests cover the adapter, multipart
+bridge, isolated tasks and mocked model transport without additional inference.
+The original one-clip experiment restored an omitted name token but failed its
+literal whole-label gate; a separate negative control was unchanged. This is
+insufficient to enable vocabulary in ordinary sessions or claim native accuracy.
+See local [research and evidence](../../bench/results/moulsot_vocabulary_followup_20260906.md).

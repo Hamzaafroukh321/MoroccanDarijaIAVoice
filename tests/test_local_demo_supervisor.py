@@ -285,3 +285,127 @@ def test_cpu_failure_keeps_one_hosted_fallback_with_original_environment(rig, mo
     assert hosted['STT_PRIMARY'] == 'moulsot'
     assert rig.state()['recovered_once'] is True
     assert all(job.closed == 1 for job in rig.control.jobs)
+
+
+def test_status_snapshot_retries_transient_replace_without_publishing_partial_json(rig, monkeypatch):
+    target = rig.module.STATE
+    target.write_text('{"status":"previous"}', encoding='utf-8')
+    replace = Path.replace
+    attempts = []
+    def locked_twice(path, destination):
+        if Path(destination) == target:
+            attempts.append(path)
+            assert path.parent == target.parent and path != target
+            assert json.loads(path.read_text(encoding='utf-8')) == {'status': 'next'}
+            if len(attempts) <= 2:
+                assert json.loads(target.read_text(encoding='utf-8')) == {'status': 'previous'}
+                raise PermissionError('simulated Windows sharing violation')
+        return replace(path, destination)
+    monkeypatch.setattr(Path, 'replace', locked_twice)
+    rig.module.write_status_snapshot(target, json.dumps({'status': 'next'}))
+    assert len(attempts) == 3
+    assert json.loads(target.read_text(encoding='utf-8')) == {'status': 'next'}
+    assert 0 < rig.clock.now <= .15 + 1e-9
+
+
+@pytest.mark.parametrize('error', [PermissionError, OSError])
+def test_status_snapshot_write_failure_has_a_bounded_retry_budget(rig, monkeypatch, error):
+    attempts = []
+    write = Path.write_text
+    def fail_temporary(path, *args, **kwargs):
+        if path == rig.module.STATE.with_suffix('.tmp'):
+            attempts.append(path)
+            raise error('simulated status disk failure')
+        return write(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'write_text', fail_temporary)
+    with pytest.raises(error):
+        rig.module.write_status_snapshot(rig.module.STATE, json.dumps({'status': 'next'}))
+    assert len(attempts) == (3 if error is PermissionError else 1)
+    assert rig.clock.now <= .15 + 1e-9
+    if error is OSError:
+        assert rig.clock.now == 0
+
+
+@pytest.mark.parametrize('target_kind', ['state', 'archive', 'both'])
+@pytest.mark.parametrize('stop_marker', [False, True], ids=['duration', 'stop_marker'])
+def test_status_publication_failure_does_not_stop_healthy_services_or_trigger_fallback(
+        rig, monkeypatch, capsys, target_kind, stop_marker):
+    rig.args.hosted_fallback = True
+    rig.control.stop_after_ready = stop_marker
+    rig.args.max_seconds = 16
+    targets = {'state': rig.module.STATE,
+               'archive': rig.module.ROOT / 'bench/results/fixture.json'}
+    failing = set(targets.values()) if target_kind == 'both' else {targets[target_kind]}
+    replace, attempts = Path.replace, []
+    def locked(path, destination):
+        if Path(destination) in failing:
+            attempts.append(Path(destination))
+            raise PermissionError('simulated status locked for this run')
+        return replace(path, destination)
+    monkeypatch.setattr(Path, 'replace', locked)
+    assert rig.run() == 0
+    assert attempts
+    assert [call[0] for call in rig.control.calls] == ['model', 'bridge', 'engine']
+    assert len(rig.control.jobs) == 1 and rig.control.jobs[0].closed == 1
+    assert rig.control.ready_count == 2
+    if stop_marker:
+        assert rig.clock.now < rig.args.max_seconds
+    else:
+        assert rig.args.max_seconds <= rig.clock.now < rig.args.max_seconds + 3
+    # A persistent failure logs transitions, not an endless warning each poll.
+    warnings = capsys.readouterr().err.strip().splitlines()
+    assert 1 <= len(warnings) <= 4
+    for path in set(targets.values()) - failing:
+        snapshot = json.loads(path.read_text(encoding='utf-8'))
+        assert snapshot['status'] == 'stopped' and snapshot['mode'] == 'local'
+        assert snapshot['recovered_once'] is False
+
+
+@pytest.mark.parametrize('service_failure', ['spawn', 'running'])
+def test_actual_service_failure_still_fails_and_cleans_up_when_status_cannot_publish(
+        rig, monkeypatch, service_failure):
+    rig.control.stop_after_ready = False
+    if service_failure == 'spawn':
+        rig.control.spawn_error = 'bridge'
+    else:
+        rig.control.fail_local = True
+    replace = Path.replace
+    targets = {rig.module.STATE, rig.module.ROOT / 'bench/results/fixture.json'}
+    def locked(path, destination):
+        if Path(destination) in targets:
+            raise PermissionError('simulated locked status files')
+        return replace(path, destination)
+    monkeypatch.setattr(Path, 'replace', locked)
+    assert rig.run() == 1
+    assert len(rig.control.jobs) == 1 and rig.control.jobs[0].closed == 1
+    assert [call[0] for call in rig.control.calls] == (
+        ['model', 'bridge'] if service_failure == 'spawn' else ['model', 'bridge', 'engine'])
+    assert rig.clock.now < rig.args.max_seconds
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Native Windows sharing semantics')
+def test_native_windows_no_delete_share_lock_preserves_old_snapshot_then_recovers(rig):
+    import ctypes
+    from ctypes import wintypes
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+        wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    # rig.STATE lives under pytest tmp_path, never the running supervisor path.
+    target = rig.module.STATE
+    old, new = '{"status":"old"}', '{"status":"new"}'
+    target.write_text(old, encoding='utf-8')
+    handle = kernel.CreateFileW(str(target), 0x80000000, 1, None, 3, 0x80, None)
+    assert handle != ctypes.c_void_p(-1).value, ctypes.WinError(ctypes.get_last_error())
+    try:
+        with pytest.raises(PermissionError):
+            rig.module.write_status_snapshot(target, new)
+        assert target.read_text(encoding='utf-8') == old
+        assert rig.clock.now == pytest.approx(.15)
+    finally:
+        assert kernel.CloseHandle(handle)
+    rig.module.write_status_snapshot(target, new)
+    assert target.read_text(encoding='utf-8') == new
+    assert not target.with_suffix('.tmp').exists()

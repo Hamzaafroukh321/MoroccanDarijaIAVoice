@@ -70,3 +70,11 @@ extensibility locally. It is not a shipped third voice demo or an ASR result.
 Custom collections, nested task stacks, external bookings and arbitrary slot
 types remain outside this extension. Use the field types supported by the base
 configuration schema and its runtime validation.
+
+An optional [local MoulSot vocabulary experiment](../deploy/local-moulsot/README.md#optional-vocabulary-experiment)
+uses `stt.moulsot_context` in the selected task's base configuration. It is off by
+default, restricted to the dedicated local demo bridge, and never populated from
+browser input or current answers. Keep vocabulary symmetric across the task's
+options, validate its bounds, and retain the applied-context hash in evidence.
+It has not established a native Darija accuracy improvement; reviewed research
+sessions reject enabled nonempty context.

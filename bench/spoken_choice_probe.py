@@ -36,12 +36,27 @@ SOURCE = ROOT/'bench/results/clinic_audio_turn_20260905_223944.json'
 ANSWER = 'الطبيب باء'
 
 
-async def probe(execute):
+def saved_input(report_path):
+    """Reuse only a hash-checked synthetic answer from this diagnostic."""
+    record = json.loads(report_path.read_text(encoding='utf-8'))
+    if (record.get('evaluation_eligible') is not False or
+            record.get('synthetic_input_text') != ANSWER or
+            record.get('source_report_sha256') != hashlib.sha256(SOURCE.read_bytes()).hexdigest()):
+        raise ValueError('Saved input does not match this synthetic follow-up.')
+    wav = (report_path.parent/'synthetic_answer.wav').read_bytes()
+    if hashlib.sha256(wav).hexdigest() != record.get('input_sha256'):
+        raise ValueError('Saved synthetic answer audio has changed.')
+    return wav
+
+
+async def probe(execute, reuse_input_report=None):
     if not execute:
         print(json.dumps(dict(source=str(SOURCE), draft_synthetic_answer=ANSWER,
-            max_asr_calls=1, max_router_calls=1, max_input_renders=1, max_reply_renders=1,
+            max_asr_calls=1, max_router_calls=1, max_input_renders=0 if reuse_input_report else 1,
+            max_reply_renders=1, reuse_input_report=str(reuse_input_report) if reuse_input_report else None,
             evaluation_eligible=False), ensure_ascii=False, indent=2))
         return
+    reused_wav = saved_input(reuse_input_report) if reuse_input_report else None
     load_dotenv(ROOT/'.env')
     os.environ['DEMO_TTS_PROVIDER'] = 'darija_xtts'
     os.environ['MOULSOT_PROTOCOL'] = 'json'
@@ -74,11 +89,17 @@ async def probe(execute):
                        endpoint='http://127.0.0.1:8012/transcribe')
     router = Router(config, ROOT)
     try:
-        audio = await input_voice.render(Action('diagnostic_input'), {})
+        if reused_wav is None:
+            audio = await input_voice.render(Action('diagnostic_input'), {})
+            wav = audio.wav
+        else:
+            wav = reused_wav
+            report['reused_input_report'] = str(reuse_input_report)
+            report['reused_input_report_sha256'] = hashlib.sha256(reuse_input_report.read_bytes()).hexdigest()
         path = directory/'synthetic_answer.wav'
-        path.write_bytes(audio.wav)
+        path.write_bytes(wav)
         pcm, seconds = read_audio(path)
-        report.update(input_seconds=seconds, input_sha256=hashlib.sha256(audio.wav).hexdigest())
+        report.update(input_seconds=seconds, input_sha256=hashlib.sha256(wav).hexdigest())
         transcript = await stt.transcribe(pcm)
         report['transcript'] = asdict(transcript)
         response = await router.route(normalize(transcript.text, config), context)
@@ -107,5 +128,7 @@ async def probe(execute):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--execute', action='store_true')
+    parser.add_argument('--reuse-input-report', type=Path,
+                        help='Reuse the verified WAV alongside a prior report; no input synthesis')
     args = parser.parse_args()
-    asyncio.run(asyncio.wait_for(probe(args.execute), timeout=240))
+    asyncio.run(asyncio.wait_for(probe(args.execute, args.reuse_input_report), timeout=240))

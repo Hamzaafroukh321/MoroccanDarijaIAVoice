@@ -11,6 +11,12 @@ the pizza demo does not place orders.
   replies, interruption handling and resource cleanup.
 - Actual MoulSot recognition, using a hosted Space or the optional local bridge.
   Groq interprets structured task operations; it does not replace MoulSot with Whisper.
+- Optional task-specific vocabulary for controlled local MoulSot demo experiments,
+  with strict bounds and an exact forwarding acknowledgment. All shipped tasks
+  leave it off; native benefit is unproven. Hosted and reviewed research paths
+  reject enabled nonempty vocabulary before inference.
+- Local supervision survives status-file sharing locks without shutting down
+  healthy speech services. Real service failures and STOP still close owned jobs.
 - Synthetic Darija XTTS demo voice, local reply caching and optional semantic
   readback grouping. Whole summaries remain the default pending quality review.
 - Configured flat tasks and pizza collections with validated operations,
@@ -26,7 +32,7 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 5, 2026 local suite passed **902 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1001 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 The earlier published source-only Git export passed 842 tests with the same single skip
@@ -44,6 +50,20 @@ A new actual MoulSot synthetic-input check omitted one option name. It asked a
 choice question without committing anything, but initially missed the linked time.
 One recheck of the saved transcript after generic prompt refinement tracked both
 fields. That is bounded diagnostic evidence, not native accuracy or a repaired ASR.
+
+A short synthetic follow-up was transcribed as `الطبيب باع`; its first routing
+attempt was rejected, while one saved-text diagnostic later held doctor B and
+asked for the linked time. No routing behavior changed between those attempts,
+so variability remains. Static validation-stage telemetry now identifies future
+rejection sites. Offline pipeline checks preserve coupled drafts and the original
+request through rejected answers, without silently committing or confirming.
+
+One frozen vocabulary experiment restored a missing B token but failed its
+predeclared exact whole-label gate. A separately reported exploratory negative
+control was unchanged. Vocabulary transport is implemented for controlled tests,
+not enabled as an accuracy fix. The full regression run also exposed a test's
+timing assumption about sender shutdown; deterministic pacing and delayed-ACK
+coverage corrected the test without changing production transport behavior.
 
 A bounded synthetic clinic sequence used actual MoulSot, Groq and Darija XTTS to
 collect preferences, correct a time, read the result back and accept a separate

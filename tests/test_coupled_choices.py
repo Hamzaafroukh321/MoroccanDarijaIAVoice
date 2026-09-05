@@ -201,7 +201,8 @@ def test_optional_but_explicitly_coupled_field_still_needs_new_answer(case):
     assert task.pending_proposal['remaining_slots'] == ['time']
 
 
-def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack(case, tmp_path):
+@pytest.mark.parametrize('reject_at', ['none', 'opening', 'partial'])
+def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack(case, tmp_path, reject_at):
     async def run():
         config, field, initial = case
         current_text, candidates, requests, events = '', [], [], []
@@ -240,6 +241,27 @@ def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack
                 candidates.append(candidate)
                 await voice.queue.put(Segment(bytes([len(requests) + 1, 0]) * 512, 0, 320, 1728, 320))
                 await asyncio.wait_for(voice.queue.join(), 2)
+            async def reject_answer(slot, value):
+                saved_values = deepcopy(voice.task.values)
+                saved_proposal = deepcopy(voice.task.pending_proposal)
+                saved_question = deepcopy(voice.task.pending_clarification)
+                saved_request = deepcopy(voice.pending_request)
+                repairs = voice.task.repair_count
+                # Actual Router validation rejects missing question identity on
+                # every bounded attempt, then the real pipeline handles recovery.
+                invalid = response(ops=[op(slot, value)], resolves_clarification=None)
+                candidates.extend([invalid] * config['router']['retries'])
+                await speak('uncertain answer', invalid)
+                await acknowledge()
+                assert voice.task.values == saved_values
+                assert voice.task.pending_proposal == saved_proposal
+                assert voice.task.pending_clarification == saved_question
+                assert voice.pending_request == saved_request
+                assert voice.task.repair_count == repairs + 1
+                assert not voice.task.confirmed and voice.task.readback_version is None
+                assert voice.turns[-1]['processing_error']['type'] == 'RouterOutputError'
+                assert voice.turns[-1]['action']['slot'] == slot
+                assert router.calls[-1]['validation_stage'] == 'clarification_identity'
             original = deepcopy(initial.values)
             text = f'{field} A at 10 or {field} B at 11'
             try:
@@ -249,6 +271,8 @@ def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack
                 await acknowledge()
                 retained = deepcopy(voice.pending_request)
                 first = voice.task.pending_clarification['id']
+                if reject_at == 'opening':
+                    await reject_answer(field, field + '_b')
                 await speak(f'{field} B', response(ops=[op(field, field + '_b')], resolves_clarification=first))
                 await acknowledge()
                 assert voice.task.values == original
@@ -256,6 +280,8 @@ def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack
                 assert voice.task.pending_clarification['id'] > first
                 assert voice.task.pending_proposal['remaining_slots'] == ['time']
                 second = voice.task.pending_clarification['id']
+                if reject_at == 'partial':
+                    await reject_answer('time', '11:00')
                 await speak('11', response(ops=[op('time', '11:00')], resolves_clarification=second))
                 fresh = await asyncio.wait_for(ended.get(), 2)
                 assert text in json.dumps(requests[-1]['messages'])

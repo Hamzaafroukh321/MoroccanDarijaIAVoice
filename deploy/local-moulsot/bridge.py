@@ -11,11 +11,16 @@ from email import policy
 from email.parser import BytesParser
 import io
 import json
+from pathlib import Path
 import re
+import sys
 import wave
 
 from fastapi import FastAPI, HTTPException, Request
 import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from engine.moulsot_context import context_sha256, validate_context_text
 
 
 UPSTREAM_URL = 'http://127.0.0.1:8011/v1/chat/completions'
@@ -89,20 +94,28 @@ async def read_upload(request):
         if message.defects or not message.is_multipart():
             raise ValueError('Invalid multipart envelope')
         parts = list(message.iter_parts())
-        if len(parts) != 1:
-            raise ValueError('Expected exactly one file part')
-        part = parts[0]
-        if (part.defects or part.is_multipart() or part.get_content_disposition() != 'form-data' or
-                part.get_param('name', header='content-disposition') != 'file' or
-                not part.get_filename() or
-                part.get('content-transfer-encoding', '').lower() not in {'', 'binary', '8bit'}):
-            raise ValueError('Invalid file part')
-        raw = part.get_payload(decode=True)
-        if not isinstance(raw, bytes):
-            raise ValueError('Invalid file body')
+        if not 1 <= len(parts) <= 2:
+            raise ValueError('Expected one file and at most one context part')
+        fields = {}
+        for part in parts:
+            name = part.get_param('name', header='content-disposition')
+            if (part.defects or part.is_multipart() or part.get_content_disposition() != 'form-data' or
+                    name not in {'file', 'context'} or name in fields or
+                    part.get('content-transfer-encoding', '').lower() not in {'', 'binary', '8bit'}):
+                raise ValueError('Invalid or repeated multipart part')
+            if ((name == 'file' and not part.get_filename()) or
+                    (name == 'context' and part.get_filename() is not None)):
+                raise ValueError('Invalid multipart filename')
+            fields[name] = part.get_payload(decode=True)
+            if not isinstance(fields[name], bytes):
+                raise ValueError('Invalid multipart body')
+        if 'file' not in fields:
+            raise ValueError('Missing audio file')
+        raw = fields['file']
+        context = validate_context_text(fields.get('context', b'').decode('utf-8'))
     except (ValueError, UnicodeError, TypeError) as exc:
-        raise HTTPException(400, 'Expected exactly one complete multipart WAV field named file.') from exc
-    return validate_wav(raw)
+        raise HTTPException(400, 'Expected one complete WAV file and at most one valid bounded context field.') from exc
+    return validate_wav(raw), context
 
 
 def parse_transcription(payload):
@@ -163,7 +176,7 @@ def create_app(client=None):
         application.state.busy = True
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT_SECONDS):
-                audio = await read_upload(request)
+                audio, context = await read_upload(request)
                 upstream = application.state.client
                 if upstream is None:
                     raise HTTPException(503, 'Bridge lifespan has not started.')
@@ -172,6 +185,8 @@ def create_app(client=None):
                     {'type': 'input_audio', 'input_audio': {
                         'data': base64.b64encode(audio).decode('ascii'), 'format': 'wav'}}]}],
                     'max_tokens': MAX_OUTPUT_TOKENS, 'temperature': 0, 'cache_prompt': False, 'stream': False}
+                if context:
+                    payload['messages'].insert(0, {'role': 'system', 'content': context})
                 async with upstream.stream('POST', UPSTREAM_URL, json=payload) as response:
                     if response.status_code != 200:
                         raise HTTPException(502, 'Local MoulSot upstream returned an error.')
@@ -181,7 +196,12 @@ def create_app(client=None):
                             raise HTTPException(502, 'Local MoulSot response exceeds the byte limit.')
                         raw.extend(chunk)
                 try:
-                    return parse_transcription(json.loads(raw))
+                    result = parse_transcription(json.loads(raw))
+                    if context:
+                        # Acknowledge the exact forwarded context, not a claim
+                        # that the model obeyed it or improved recognition.
+                        result['context_sha256'] = context_sha256(context)
+                    return result
                 except (ValueError, UnicodeError, TypeError) as exc:
                     raise HTTPException(502, 'Invalid local MoulSot transcription: ' + str(exc)) from exc
         except (TimeoutError, httpx.TimeoutException) as exc:

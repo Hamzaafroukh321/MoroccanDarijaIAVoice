@@ -12,6 +12,7 @@ from websockets.exceptions import ConnectionClosedOK
 from websockets.frames import Close
 
 from bench.voice_transport import error_messages, run_transport, verified_wav
+import bench.voice_transport as voice_transport
 
 
 def wav_bytes():
@@ -38,6 +39,9 @@ class ProtocolSocket:
         self.frames_after_stop = 0
         self.sender_stopped_before_stop = False
         self.controls = []
+        self.fourth_frame_sent = asyncio.Event()
+        self.pacing_blocked = False
+        self.pacing_cancelled = False
         self.raw = wav_bytes()
         self.emit(type='ready')
 
@@ -79,6 +83,8 @@ class ProtocolSocket:
                 if self.pcm_frames == 3:
                     self.emit(type='transcript', text='Offline fixture')
                     self.audio('reply', 'ask')
+                elif self.pcm_frames == 4:
+                    self.fourth_frame_sent.set()
             return
         event = json.loads(payload)
         self.controls.append(event)
@@ -91,6 +97,10 @@ class ProtocolSocket:
         elif event['type'] == 'playback_finished':
             if event['playback_id'] == 'greeting':
                 self.greeting_complete = True
+            elif self.mode == 'delayed_reply_ack':
+                # Completion is deliberately later than the next source tick.
+                # Extra pre-completion frames are legal; post-stop sends aren't.
+                await self.fourth_frame_sent.wait()
             self.emit(type='state', state='LISTENING')
         elif event['type'] == 'stop':
             # A task still sleeping when stop closes the socket caused the
@@ -107,6 +117,34 @@ class ProtocolSocket:
 def execute(monkeypatch, tmp_path, mode='complete'):
     socket = ProtocolSocket(mode)
     monkeypatch.setattr(websockets, 'connect', lambda *args, **kwargs: socket)
+    class ControlledPacer:
+        resets = 0
+        max_lag_seconds = 0
+        def __init__(self, interval):
+            assert interval == .032
+            self.input_started = False
+        async def wait_next(self, stopped):
+            # Yield so greeting/receive can run, without using wall-clock latency
+            # to decide whether reply processing fits into the next 32 ms tick.
+            await asyncio.sleep(0)
+            while not self.input_started and not stopped():
+                # The socket's greeting ACK send precedes the harness consuming
+                # its state event and enabling source input. Wait for that gate.
+                self.input_started = report['turns'][0]['status'] == 'sending'
+                if not self.input_started:
+                    await asyncio.sleep(0)
+            if stopped():
+                return False
+            limit = 4 if mode == 'delayed_reply_ack' else 3
+            if socket.pcm_frames >= limit:
+                socket.pacing_blocked = True
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    socket.pacing_cancelled = True
+                    raise
+            return not stopped()
+    monkeypatch.setattr(voice_transport, 'FramePacer', ControlledPacer)
     report = {'timings_ms': {}, 'events': [], 'outputs': [], 'frames_sent': 0}
     config = {'runtime': {'frame_ms': 32, 'sample_rate_hz': 16000},
               'endpointing': {'base_silence_ms': 0, 'max_wait_ms': 0}}
@@ -114,12 +152,14 @@ def execute(monkeypatch, tmp_path, mode='complete'):
     return socket, report, run_transport(args, bytes(1024), config, report, tmp_path)
 
 
-def test_completed_reply_stops_sender_before_clean_session_close(monkeypatch, tmp_path):
-    socket, report, run = execute(monkeypatch, tmp_path)
+@pytest.mark.parametrize('mode,expected_frames', [('complete', 3), ('delayed_reply_ack', 4)])
+def test_completed_reply_stops_sender_before_clean_session_close(monkeypatch, tmp_path, mode, expected_frames):
+    socket, report, run = execute(monkeypatch, tmp_path, mode)
     asyncio.run(run)
     assert socket.sender_stopped_before_stop
     assert socket.frames_after_stop == 0
-    assert socket.pcm_frames == 3
+    assert socket.pcm_frames == expected_frames
+    assert socket.pacing_blocked and socket.pacing_cancelled
     assert report['server_status'] == 'interrupted'
     assert 'stop_sent' in report['timings_ms']
     assert 'server_done' in report['timings_ms']

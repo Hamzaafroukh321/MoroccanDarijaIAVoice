@@ -22,17 +22,39 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    MoulSot recognizer and selected Darija XTTS voice; native multi-turn kitchen
    accuracy still needs reviewed human recordings and the owner-supplied cases.
 
-1. **Next concrete speech question:** a new actual MoulSot synthetic linked-choice
-   input omitted doctor B. The engine committed nothing; the first router reply
-   also omitted time coupling. Generic routing guidance plus ONE saved-transcript
-   recheck now tracks doctor/time together. Preserve both reports and the omitted
-   word. Do not regenerate this passing opening or claim the ASR was fixed.
-   Next useful diagnostic is whether a short follow-up to this saved question can
-   preserve the linkage through actual MoulSot. Use a bounded new follow-up only
-   if it answers that question; stop/back off on quotas. Any constructed input
-   remains synthetic/unreviewed, not the user's gold evaluation.
-   Source: bench/results/clinic_audio_turn_20260905_223813.json;
-   saved-transcript recheck: clinic_audio_turn_20260905_223944.json.
+1. **Speech findings and next boundary:** the saved short answer was reused after
+   fixing the supervisor crash. Actual MoulSot returned `الطبيب باع`; the first
+   router attempt was rejected, while ONE saved-text recheck held B and asked time.
+   No behavioral routing fix occurred between those attempts. Do not repeat it
+   until a new observed failure/change justifies investigation. Static validation
+   stages now classify future rejections; offline pipeline checks preserve coupled
+   drafts, current question identity and original requests through rejected answers.
+
+   A frozen four-call local vocabulary experiment restored the missing B token,
+   but its exact whole-label gate failed because articles were omitted. A separately
+   reported exploratory negative control was unchanged. New optional per-task
+   vocabulary transport is implemented and remains OFF in every shipped config.
+   One additional live check of the newly implemented adapter/bridge path verified
+   context forwarding/hash acknowledgment (1.410s), using saved negative-control
+   audio. It was a transport integration check, not another accuracy experiment.
+   Evidence: bench/results/moulsot_vocabulary_followup_20260906.md and
+   context_bridge_live_22fb1c415702419caeea97ae8bd4d7ea.json. Native benefit remains
+   unproven. No more synthetic prompt searches or repeated green context calls.
+
+   **Next independent offline step:** implement the first contract slice from
+   bench/results/configured_collections_design_20260906.md. The design audit is
+   complete: transactions.py already supports arbitrary collections, but the
+   surrounding collection dialogue/router/render/recovery remains pizza-specific.
+   A fictional equipment collection with asset/quantity and root return_date is
+   blocked by the explicit constructor/profile guards. Add an explicit separate
+   configured_collection_scoped adapter/factory in bounded stages, retaining the
+   existing pizza path. Start with profile validation and state/kernel fixtures
+   under original and renamed IDs, then dialogue/render/recovery. Preserve row
+   identity, atomic updates, draft isolation, corrections and fresh confirmation.
+   Cross-row coupled dependencies require addresses, so do not silently reuse
+   flat coupled_slots. Do not copy pizza logic, alter existing successful voice
+   scripts, or claim a shipped third voice demo from fixtures.
+   Native speech quality still needs owner-supplied reviewed cases/recordings.
 
    Completed: explicit coupled_slots in flat clarification, atomic staged answers,
    fresh next-question IDs, original request retained until group completion,
@@ -47,8 +69,9 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    guard corrected the two failing forms. All original seven case contracts have
    passed at least once across separate revisions; not one consistent evaluation
    run or native accuracy. Do not rerun passing cases.
-   Whole session:10 Groq requests,1 MoulSot ASR,1 synthetic input render, cached
-   reply renders. No payment, new model downloads, or publication.
+   Previous coupled milestone:10 Groq requests,1 MoulSot ASR,1 synthetic input
+   render, cached replies. September6 continuation:6 actual local ASR calls,
+   2 Groq calls,0 new TTS. No purchases, model downloads or autonomous publication.
 
 2. **Recovery increment completed:** eligible demo errors offer Continue saved
    details for committed values, with pending changes explicitly discarded and
@@ -67,13 +90,23 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-05T23:42:38 Casablanca, supervisorPID22940.
+  --start --hosted-fallback --device cpu at 2026-09-06T00:25:34 Casablanca,
+  supervisorPID29736 (launcher wrapper23052).
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/coupled_refresh_20260905.json records the no-inference checks.
+  bench/results/context_refresh_20260906.json records the no-inference checks.
+  Context is absent from both shipped task configs. Status-file sharing failures
+  now receive bounded retries and independent best-effort publication; they cannot
+  kill healthy services. Check updated_at because locked snapshots can be stale.
+  The old supervisor22940 failed on WinError5 status replacement; failed snapshot
+  and native Windows lock reproduction are preserved in
+  bench/results/supervisor_status_failure_20260906.md. Exact lock owner unknown.
   Whole readback remains default; conditional clarification schema, bounded retry
   explicit enum guard, coupled-field staging and saved-detail recovery are active.
-  Latest complete suite902passed/1native-review skip (28.93s), then80affected
-  checks after the final generic prompt refinement, plus11 browser
+  Latest complete suite1001passed/1native-review skip (30.14s), including46 context
+  transport/preflight cases, native Windows sharing semantics and coupled-error
+  preservation. An initial full run exposed an overly exact timing assertion in
+  a transport fixture; deterministic pacing and delayed-ACK controls corrected
+  the test without altering production sender behavior. Earlier11 browser
   recovery checks with mocked microphone/socket events. Read
   .local/moulsot/supervisor.json for current status/PIDs; selected_device must
   remain cpu on controlled refresh unless measurements justify a change. The
@@ -107,7 +140,7 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   native-reviewed number fixture and base research gates remain pending.
 
 - The user explicitly requested a GitHub snapshot; it was pushed to
-  Hamzaafroukh321/MoroccanDarijaIAVoice main at1e7b67a. A clean source-only export
+  Hamzaafroukh321/MoroccanDarijaIAVoice main atfdec1fe. An earlier clean source-only export
   passed842/1skip after LF checksum correction. Later autonomous changes remain
   local unless separately authorized for publication; no automatic force pushes.
 
@@ -184,6 +217,14 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 - Initial validation agent output: bench/results/regression_audit_20260905.md.
 
 ## Completed work log
+
+- 2026-09-06: fixed supervisor observability failure without hiding actual service
+  errors; restored the local CPU demo; reused the failed transport attempt's
+  synthetic audio; recorded ASR/routing variability; tested symmetric vocabulary
+  with a frozen negative control. Implemented opt-in local per-task vocabulary,
+  bounded config/wire formats, matching acknowledgment, setup rejection, research
+  gating and isolated telemetry. All defaults remain off. Full1001/1skip and one
+  actual integration request pass. Evidence linked above; no native accuracy claim.
 
 - 2026-09-05 retained-history cancellation: separate request IDs allow explicitly
   forgetting resolved recovery text while preserving committed data. Old question

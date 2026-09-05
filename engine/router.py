@@ -427,6 +427,7 @@ class Router:
             started = time.monotonic()
             raw = None
             output_received = False
+            validation_stage = None
             try:
                 response=await self.client.post(self.settings['url'],headers={'Authorization':'Bearer '+self.api_key},json={
                     'model':self.settings['model'],'messages':messages,
@@ -440,10 +441,14 @@ class Router:
                     raise ValueError('Malformed router response envelope.')
                 raw=choice['message']['content']
                 output_received=True
+                validation_stage = 'response_completion'
                 if choice.get('finish_reason') not in (None, 'stop') or choice['message'].get('refusal'):
                     raise ValueError('Incomplete or refused router response.')
+                validation_stage = 'response_schema'
                 parsed=parse_response(raw,self.config)
+                validation_stage = 'current_utterance_time'
                 validate_temporal_grounding(parsed, transcript, self.config, state)
+                validation_stage = 'explicit_enum_alternatives'
                 validate_enum_alternatives(parsed, transcript, self.config)
                 if order_demo(self.config) or flat_scoped_demo(self.config):
                     if flat_scoped_demo(self.config):
@@ -452,9 +457,11 @@ class Router:
                     else:
                         from engine.demo_order import DemoOrderState
                         matches = DemoOrderState.resolution_matches
+                    validation_stage = 'clarification_identity'
                     validate_resolution_identity(state.get('pending_clarification'),
                         [operation.model_dump() for operation in parsed.ops],
                         parsed.resolves_clarification, matches)
+                    validation_stage = 'retained_request_discard'
                     validate_request_discard(parsed.model_dump(), state.get('pending_request'),
                         pending_clarification=state.get('pending_clarification'),
                         pending_proposal=state.get('pending_proposal'))
@@ -470,6 +477,8 @@ class Router:
                 self.calls.append({'ok':False,'provider_failure':isinstance(exc,httpx.HTTPError),'error':type(exc).__name__,
                     'failure_kind':'model_output' if output_received else 'provider',
                     'http_status':getattr(getattr(exc,'response',None),'status_code',None),'elapsed_ms':(time.monotonic()-started)*1000})
+                if output_received and validation_stage is not None:
+                    self.calls[-1]['validation_stage'] = validation_stage
                 if isinstance(exc, TemporalGroundingError):
                     self.calls[-1]['validation_rule'] = 'current_utterance_time'
                     messages.append({'role': 'system', 'content':

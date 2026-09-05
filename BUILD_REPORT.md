@@ -1,6 +1,6 @@
 # Darija Voice — Current Build Report
 
-> Latest September 5 code checkpoint: **902 tests pass, 1 is skipped**. Pizza and
+> Latest September 6 code checkpoint: **1001 tests pass, 1 is skipped**. Pizza and
 > a fictional clinic preference preview now share transactions, scoped dialogue,
 > staged changes, cancellation and versioned confirmation. Both use the same
 > MoulSot → Groq → Darija XTTS pipeline. A real-provider synthetic clinic diagnostic
@@ -32,6 +32,17 @@
 > check omitted B; after a saved-transcript routing refinement it tracked both
 > unresolved fields. The transcription limitation remains. See local
 > [coupled-choice evidence](bench/results/coupled_choices_20260905.md).
+> The supervisor now tolerates Windows status-file locks without stopping healthy
+> speech services, while preserving real failure cleanup and STOP. Native Windows
+> lock reproduction and lifecycle tests pass. See local
+> [supervisor evidence](bench/results/supervisor_status_failure_20260906.md).
+> A bounded vocabulary experiment restored a missing name token but failed its
+> literal full-label gate; an exploratory negative control was unchanged. Optional
+> per-task vocabulary transport is now available only for controlled local demos,
+> with limits, forwarding acknowledgment, isolation and setup checks. All shipped
+> tasks leave it off. Short-answer ASR/routing variability remains unresolved;
+> static validation-stage telemetry and pending-state failure checks are added.
+> See [follow-up evidence](bench/results/moulsot_vocabulary_followup_20260906.md).
 > Explicit **Continue saved details** now restores validated committed values into
 > a new unconfirmed demo after an eligible error. Pending changes are discarded;
 > recovery lasts up to 30 minutes while the page and server remain open. Eleven

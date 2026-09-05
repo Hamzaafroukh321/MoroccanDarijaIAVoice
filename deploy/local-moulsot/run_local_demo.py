@@ -26,6 +26,20 @@ STATE = DEST / 'supervisor.json'
 STOP = DEST / 'STOP'
 
 
+def write_status_snapshot(path, payload):
+    """Keep readers on complete JSON; tolerate brief Windows sharing locks."""
+    temporary = path.with_suffix('.tmp')
+    for attempt in range(3):
+        try:
+            temporary.write_text(payload, encoding='utf-8')
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 2:
+                raise
+            time.sleep(.05 * (attempt + 1))
+
+
 def memory_snapshot(device):
     if device not in {'cpu', 'cuda'}:
         raise ValueError('device must be cpu or cuda')
@@ -129,14 +143,31 @@ def main(args):
     engine_command = [sys.executable, '-X', 'utf8', '-m', 'engine.server']
     job = None
     processes = []
+    publication_failures = set()
 
     def save():
         state['updated_at'] = time.strftime('%Y-%m-%dT%H:%M:%S')
         state['elapsed_seconds'] = time.perf_counter() - started
-        temporary = STATE.with_suffix('.tmp')
-        temporary.write_text(json.dumps(state, indent=2), encoding='utf-8')
-        temporary.replace(STATE)
-        prefix.with_suffix('.json').write_text(json.dumps(state, indent=2), encoding='utf-8')
+        # Observability must not kill healthy owned services. Each destination is
+        # independent; a locked dashboard snapshot can still be recorded in the
+        # per-run archive. Retry on the normal loop after a bounded local attempt.
+        for label, path in (('current', STATE), ('archive', prefix.with_suffix('.json'))):
+            # A successfully published snapshot should already report this
+            # destination's recovery; a failed attempt leaves the old file intact.
+            state['status_publication_unavailable'] = sorted(publication_failures - {label})
+            try:
+                write_status_snapshot(path, json.dumps(state, indent=2))
+            except OSError as exc:
+                state['status_publication_failures'] = state.get('status_publication_failures', 0) + 1
+                if label not in publication_failures:
+                    print(f'Supervisor {label} status unavailable ({type(exc).__name__}); '
+                          'services remain supervised; snapshot may be stale.', file=sys.stderr, flush=True)
+                publication_failures.add(label)
+            else:
+                if label in publication_failures:
+                    print(f'Supervisor {label} status publication recovered.', file=sys.stderr, flush=True)
+                publication_failures.discard(label)
+        state['status_publication_unavailable'] = sorted(publication_failures)
 
     def spawn(name, command, env):
         stdout = Path(str(prefix) + f'.{name}.stdout.log')

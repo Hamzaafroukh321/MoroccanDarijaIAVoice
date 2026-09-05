@@ -105,3 +105,29 @@ def test_each_selected_source_slot_must_exist_once(monkeypatch, tmp_path):
     config['slots'].append(deepcopy(next(slot for slot in config['slots'] if slot['id'] == 'doctor')))
     with pytest.raises(ValueError, match='(?i)exactly once|duplicate|slot'):
         demo_module.demo_config(config)
+
+
+@pytest.mark.parametrize('context', [
+    {'enabled': True, 'terms': ['a' * 80, 'b' * 80]},
+    {'enabled': False, 'terms': ['hidden\u200bterm']},
+    {'enabled': 'yes', 'terms': []},
+    {'enabled': True, 'terms': ['term'], 'prompt': 'extra field'},
+])
+def test_context_structure_and_semantic_bounds_fail_during_domain_loading(tmp_path, context):
+    config = json.loads((ROOT/'configs/clinic.json').read_text(encoding='utf-8'))
+    config['stt']['moulsot_context'] = context
+    path = tmp_path/'clinic.json'
+    path.write_text(json.dumps(config), encoding='utf-8')
+    with pytest.raises(ValueError):
+        load_config(path)
+
+
+def test_domain_context_remains_local_to_loaded_configuration(tmp_path):
+    config = json.loads((ROOT/'configs/clinic.json').read_text(encoding='utf-8'))
+    context = {'enabled': True, 'terms': ['الطبيب ألف', 'الطبيب باء']}
+    config['stt']['moulsot_context'] = context
+    path = tmp_path/'clinic.json'
+    path.write_text(json.dumps(config), encoding='utf-8')
+    assert load_config(path)['stt']['moulsot_context'] == context
+    assert 'moulsot_context' not in load_config(ROOT/'configs/clinic.json')['stt']
+    assert 'moulsot_context' not in load_config(ROOT/'configs/pizza.json')['stt']

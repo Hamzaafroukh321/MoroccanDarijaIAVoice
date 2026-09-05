@@ -17,6 +17,8 @@ import wave
 
 import httpx
 
+from engine.moulsot_context import configured_context, context_sha256, validate_context_target
+
 
 class STTError(RuntimeError):
     pass
@@ -184,10 +186,23 @@ class SpeechToText:
         self.primary = primary or os.getenv('STT_PRIMARY', 'moulsot')
         if self.primary not in {'moulsot','groq'}: raise STTError('STT_PRIMARY must be moulsot or groq.')
         self.endpoint = endpoint if endpoint is not None else os.getenv('MOULSOT_ENDPOINT', '')
+        try:
+            self.moulsot_context = configured_context(self.settings)
+        except ValueError:
+            raise STTError('Invalid experimental MoulSot vocabulary configuration.') from None
+        try:
+            validate_context_target(self.moulsot_context, demo=config.get('demo'),
+                primary=self.primary, fallback=fallback, protocol=protocol, endpoint=self.endpoint)
+        except ValueError as exc:
+            raise STTError(str(exc)) from None
+        self.moulsot_context_hash = context_sha256(self.moulsot_context) if self.moulsot_context else None
         self.api_key = api_key if api_key is not None else os.getenv('GROQ_API_KEY','')
         self.hf_token = (hf_token if hf_token is not None else os.getenv('HF_TOKEN','')).strip()
         self.limiter = RateLimiter(config, root)
-        self.client = client or httpx.AsyncClient(timeout=self.settings['timeout_ms']/1000)
+        client_options = {'timeout': self.settings['timeout_ms']/1000}
+        if self.moulsot_context:
+            client_options['trust_env'] = False
+        self.client = client or httpx.AsyncClient(**client_options)
         self.owns_client = client is None
         self.fallback = fallback
         self.calls = []
@@ -211,6 +226,10 @@ class SpeechToText:
                       'pcm_bytes': len(pcm), 'audio_duration_ms': len(pcm) * 1000 /
                       (self.runtime['sample_rate_hz'] * self.runtime['sample_width_bytes'] * self.runtime['channels']),
                       'phases_ms': {}}
+            if self.moulsot_context:
+                record['moulsot_context'] = {'experimental': True,
+                    'terms': deepcopy(self.settings['moulsot_context']['terms']),
+                    'sha256': self.moulsot_context_hash, 'applied': False}
             try:
                 async with asyncio.timeout(self.settings['timeout_ms']/1000):
                     result = await (self._moulsot(audio, timing=record) if provider == 'moulsot' else self._groq(audio, len(pcm)))
@@ -240,10 +259,19 @@ class SpeechToText:
         if not self.endpoint:
             raise STTError('Set MOULSOT_ENDPOINT to a hosted MoulSot Space, or use an isolated local JSON service with MOULSOT_PROTOCOL=json. Direct model loading is incompatible with the pinned runtime.')
         if self.settings['moulsot_protocol'] == 'json':
+            request_options = {}
+            if self.moulsot_context:
+                request_options = {'data': {'context': self.moulsot_context}, 'follow_redirects': False}
             with timed_phase(timing, 'json_request'):
-                response = await self.client.post(self.endpoint, files={'file':('segment.wav',audio,'audio/wav')})
+                response = await self.client.post(self.endpoint, files={'file':('segment.wav',audio,'audio/wav')},
+                                                  **request_options)
                 response.raise_for_status()
                 payload = response.json()
+            if self.moulsot_context:
+                if not isinstance(payload, dict) or payload.get('context_sha256') != self.moulsot_context_hash:
+                    raise STTError('Local MoulSot did not acknowledge the configured vocabulary.')
+                if timing is not None and 'moulsot_context' in timing:
+                    timing['moulsot_context']['applied'] = True
             text = payload['text']
             confidence = payload.get('confidence')
             if not isinstance(text,str): raise STTError('MoulSot text must be a string.')

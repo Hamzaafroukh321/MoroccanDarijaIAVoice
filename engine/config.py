@@ -9,6 +9,8 @@ from typing import Any, Literal
 from jsonschema import Draft7Validator
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from engine.moulsot_context import configured_context
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -135,6 +137,10 @@ def load_config(path: str | Path) -> dict[str, Any]:
     if type(config['audio_output'].get('gap_ms')) is not int or config['audio_output']['gap_ms']<0: raise ConfigError('audio_output.gap_ms must be nonnegative.')
     if config['router'].get('retries')!=1: raise ConfigError('Router retries must equal one, as specified.')
     if config['stt'].get('moulsot_protocol') not in {'json','gradio'}: raise ConfigError('MoulSot protocol must be json or gradio.')
+    try:
+        configured_context(config['stt'])
+    except ValueError as exc:
+        raise ConfigError('Invalid stt.moulsot_context: ' + str(exc)) from exc
     if config['overlap'].get('required_signals')!=2: raise ConfigError('Overlap requires exactly two signals.')
     if not config['stt'].get('limits'): raise ConfigError('Groq quota windows are required.')
     for limit in config['stt']['limits']:
