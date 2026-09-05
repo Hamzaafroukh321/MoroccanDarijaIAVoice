@@ -67,10 +67,11 @@ async def probe(execute, selected_ids=None):
     base = demo_config(load_config(ROOT / 'configs/clinic.json'))
     base['router']['retries'] = 0
     output = ROOT / 'bench/results' / ('ambiguity_probe_' + uuid.uuid4().hex + '.json')
+    output.parent.mkdir(parents=True, exist_ok=True)
     report = dict(kind='unreviewed_English_engineering_cases', evaluation_eligible=False,
         asr_calls=0, tts_calls=0, max_requests=len(cases), rows=[], status='started',
         source_hashes={name: hashlib.sha256((ROOT/'engine'/name).read_bytes()).hexdigest()
-                       for name in ('router.py', 'temporal_grounding.py', 'dialogue.py', 'scoped_task.py')})
+                       for name in ('router.py', 'enum_grounding.py', 'temporal_grounding.py', 'dialogue.py', 'scoped_task.py')})
     def save():
         output.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     try:

@@ -45,6 +45,10 @@ class ScopedDialogue:
       _compatible_resolution(operations): check against the current pending scope.
       _stage_proposal(operations, clarification, intent, response): validate
           without mutation; return ops/state/base_version plus adapter metadata.
+      _requires_proposal(clarification): optionally stage an empty initial
+          transaction when the adapter needs explicit coverage of several fields.
+      _plan_resolution(operations): optionally clone-validate and return a
+          proposal/pending continuation without mutation; None commits normally.
       _begin_ambiguity(), _clear_ambiguity(): manage ambiguity_pending and any
           adapter-specific ambiguity context; awaiting_correction is owned here.
       _repair(count=True), next_action(): select adapter response actions.
@@ -61,6 +65,13 @@ class ScopedDialogue:
     """
 
     proposal_intents = frozenset({'out_of_scope'})
+
+    def _requires_proposal(self, clarification):
+        return False
+
+    def _plan_resolution(self, operations):
+        """Optional validated continuation; None keeps the normal commit path."""
+        return None
 
     def consume(self, response, *, retained_request=None):
         if response.get('discard_request') is not None:
@@ -104,7 +115,7 @@ class ScopedDialogue:
         proposal = None
         validate_resolution_identity(self.pending_clarification, operations, resolution_id,
                                      self.resolution_matches)
-        if proposed_ops:
+        if proposed_ops or self._requires_proposal(clarification):
             if (self.pending_clarification is not None or intent not in self.proposal_intents or
                     operations or yes or no or resolution_id is not None or
                     not isinstance(clarification, dict)):
@@ -135,6 +146,18 @@ class ScopedDialogue:
             self.awaiting_correction = True
         if intent != 'task' or unclear:
             return self._repair(count=intent != 'greeting')
+        if resolution_id is not None:
+            continuation = self._plan_resolution(operations)
+            if continuation is not None:
+                # The adapter validates the entire candidate before returning.
+                # A partial answer changes only the draft, never committed facts.
+                self.pending_proposal = continuation['proposal']
+                self.pending_clarification = continuation['pending']
+                self._next_clarification_id += 1
+                self.awaiting_correction = True
+                self.repair_count = 0
+                self.invalidate_confirmation()
+                return self.next_action()
         previous_version = self.version
         previous_values = deepcopy(self.values)
         was_awaiting_correction = self.awaiting_correction

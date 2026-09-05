@@ -26,12 +26,24 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The September 5, 2026 local suite passed **842 tests, with 1 skipped native-review
+The latest September 5, 2026 local suite passed **902 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
-The source-only Git export also passed all 842 tests with the same single skip
+The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.
+
+A subsequent local fix prevents silent first-option selection in a narrowly
+recognized configured-enum alternative. Two previously failing English text cases
+now ask a choice question and hold independent date/time details. Linked fields
+can also stay pending across partial answers, then commit together with fresh
+confirmation. This closes the reproduced state-contract gap when coupling is
+declared; the router must still recognize the relationship.
+
+A new actual MoulSot synthetic-input check omitted one option name. It asked a
+choice question without committing anything, but initially missed the linked time.
+One recheck of the saved transcript after generic prompt refinement tracked both
+fields. That is bounded diagnostic evidence, not native accuracy or a repaired ASR.
 
 A bounded synthetic clinic sequence used actual MoulSot, Groq and Darija XTTS to
 collect preferences, correct a time, read the result back and accept a separate

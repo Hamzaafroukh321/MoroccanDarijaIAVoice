@@ -1,6 +1,6 @@
 # Darija Voice — Current Build Report
 
-> Latest September 5 code checkpoint: **842 tests pass, 1 is skipped**. Pizza and
+> Latest September 5 code checkpoint: **902 tests pass, 1 is skipped**. Pizza and
 > a fictional clinic preference preview now share transactions, scoped dialogue,
 > staged changes, cancellation and versioned confirmation. Both use the same
 > MoulSot → Groq → Darija XTTS pipeline. A real-provider synthetic clinic diagnostic
@@ -21,6 +21,17 @@
 > bounded retry are fixed. Groq accepted the final inline conditional schema in
 > one bounded English engineering case after rejecting a referenced union. See the
 > [scope fix](bench/results/clarification_scope_fix_20260905.md).
+> A later real-text probe exposed silent first-option selection for clinic and
+> renamed counter fields. Generic choice guidance and a narrow configured-enum
+> check now prevent the observed form; both failed cases pass on recheck with
+> date/time held pending. This is not general Darija accuracy. See local
+> [enum evidence](bench/results/enum_alternatives_20260905.md).
+> Linked fields can now stay pending across multiple clarification answers.
+> Choosing B from A/10 or B/11 holds B and asks time instead of inheriting old10.
+> A real three-turn router check passes. One new actual MoulSot synthetic speech
+> check omitted B; after a saved-transcript routing refinement it tracked both
+> unresolved fields. The transcription limitation remains. See local
+> [coupled-choice evidence](bench/results/coupled_choices_20260905.md).
 > Explicit **Continue saved details** now restores validated committed values into
 > a new unconfirmed demo after an eligible error. Pending changes are discarded;
 > recovery lasts up to 30 minutes while the page and server remain open. Eleven

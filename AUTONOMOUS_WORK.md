@@ -22,12 +22,33 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    MoulSot recognizer and selected Darija XTTS voice; native multi-turn kitchen
    accuracy still needs reviewed human recordings and the owner-supplied cases.
 
-1. **Next concrete router check:** the dependent-pair null-scope failure is fixed
-   with an inline conditional schema accepted by Groq. Preserve its rejected
-   referenced-union attempt. Three independent English cases also passed; do not
-   repeat them. Custom renamed-field and remaining independent-choice cases in
-   bench/ambiguity_probe.py remain unattempted. Use only selected unresolved cases
-   when a new compatibility/generalization question justifies provider calls.
+1. **Next concrete speech question:** a new actual MoulSot synthetic linked-choice
+   input omitted doctor B. The engine committed nothing; the first router reply
+   also omitted time coupling. Generic routing guidance plus ONE saved-transcript
+   recheck now tracks doctor/time together. Preserve both reports and the omitted
+   word. Do not regenerate this passing opening or claim the ASR was fixed.
+   Next useful diagnostic is whether a short follow-up to this saved question can
+   preserve the linkage through actual MoulSot. Use a bounded new follow-up only
+   if it answers that question; stop/back off on quotas. Any constructed input
+   remains synthetic/unreviewed, not the user's gold evaluation.
+   Source: bench/results/clinic_audio_turn_20260905_223813.json;
+   saved-transcript recheck: clinic_audio_turn_20260905_223944.json.
+
+   Completed: explicit coupled_slots in flat clarification, atomic staged answers,
+   fresh next-question IDs, original request retained until group completion,
+   committed-only recovery and unresolved values omitted from pending preview.
+   Real Groq three-turn English check passes B held -> time11 -> B11 readback,
+   unconfirmed. 32 independent coupled tests and8 mocked-browser checks pass.
+   Evidence: bench/results/coupled_choices_20260905.md. This closes the declared-
+   dependency state gap; the model can still omit dependency metadata.
+
+   Completed: the remaining enum alternatives tests exposed silent A selection
+   in clinic/custom fields. Generic choice guidance and a conservative exact-enum
+   guard corrected the two failing forms. All original seven case contracts have
+   passed at least once across separate revisions; not one consistent evaluation
+   run or native accuracy. Do not rerun passing cases.
+   Whole session:10 Groq requests,1 MoulSot ASR,1 synthetic input render, cached
+   reply renders. No payment, new model downloads, or publication.
 
 2. **Recovery increment completed:** eligible demo errors offer Continue saved
    details for committed values, with pending changes explicitly discarded and
@@ -46,12 +67,13 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-05T23:05:42 Casablanca, supervisorPID35564.
+  --start --hosted-fallback --device cpu at 2026-09-05T23:42:38 Casablanca, supervisorPID22940.
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/recovery_refresh_20260905.json records the no-inference checks.
+  bench/results/coupled_refresh_20260905.json records the no-inference checks.
   Whole readback remains default; conditional clarification schema, bounded retry
-  and explicit saved-detail recovery are active.
-  Latest complete suite842passed/1native-review skip (29.08s), plus11 browser
+  explicit enum guard, coupled-field staging and saved-detail recovery are active.
+  Latest complete suite902passed/1native-review skip (28.93s), then80affected
+  checks after the final generic prompt refinement, plus11 browser
   recovery checks with mocked microphone/socket events. Read
   .local/moulsot/supervisor.json for current status/PIDs; selected_device must
   remain cpu on controlled refresh unless measurements justify a change. The
@@ -83,6 +105,11 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   not latency evidence. Full run66.772s includes playback and source speech.
 - Earlier clinic checkpoint:719passed/1skipped,14 known warnings,41.16s. The skipped
   native-reviewed number fixture and base research gates remain pending.
+
+- The user explicitly requested a GitHub snapshot; it was pushed to
+  Hamzaafroukh321/MoroccanDarijaIAVoice main at1e7b67a. A clean source-only export
+  passed842/1skip after LF checksum correction. Later autonomous changes remain
+  local unless separately authorized for publication; no automatic force pushes.
 
 ## Operating rules
 
@@ -117,7 +144,7 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 
 ## Evidence and baseline
 
-- Latest complete suite: **719 passed, 1 skipped**, 14 existing warnings, 41.16 s.
+- Historical clinic checkpoint: **719 passed, 1 skipped**, 14 existing warnings, 41.16 s.
   Config-added domains now validate in supplied-audio replay; twelve independent
   cases close the old pizza/clinic-only harness limitation. Static ASR failure
   messages and status categories distinguish timeouts, busy/rate limits and

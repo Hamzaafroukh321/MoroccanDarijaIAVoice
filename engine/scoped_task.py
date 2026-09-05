@@ -47,8 +47,10 @@ class ScopedTaskState(ScopedDialogue, TaskState):
         self.ambiguity_pending = False
 
     def _clarification(self, clarification):
-        if not isinstance(clarification, dict) or set(clarification) != {'kind', 'slot', 'item_ids'}:
-            raise ValueError('A clarification requires kind, slot and item_ids only.')
+        required = {'kind', 'slot', 'item_ids'}
+        if (not isinstance(clarification, dict) or not required <= set(clarification) or
+                set(clarification) - required - {'coupled_slots'}):
+            raise ValueError('A clarification requires kind, slot and item_ids, with optional coupled_slots.')
         kind, slot, ids = (clarification[key] for key in ('kind', 'slot', 'item_ids'))
         if kind not in {'unsupported_value', 'ambiguous_value', 'unintelligible'}:
             raise ValueError('Unknown clarification kind.')
@@ -58,7 +60,22 @@ class ScopedTaskState(ScopedDialogue, TaskState):
             raise ValueError('Unknown clarification slot.')
         if kind != 'unintelligible' and slot is None:
             raise ValueError('A value clarification requires an explicit field.')
-        return {'id': self._next_clarification_id, 'kind': kind, 'slot': slot, 'item_ids': []}
+        coupled = clarification.get('coupled_slots')
+        if coupled is not None:
+            if (not isinstance(coupled, list) or len(coupled) > 39 or len(coupled) >= len(self.slots) or
+                    any(not isinstance(key, str) or key not in self.slots for key in coupled) or
+                    len(set(coupled)) != len(coupled) or slot in coupled):
+                raise ValueError('Coupled fields must be distinct configured fields excluding the primary field.')
+            if coupled and kind != 'ambiguous_value':
+                raise ValueError('Only ambiguous value clarifications can couple fields.')
+        pending = {'id': self._next_clarification_id, 'kind': kind, 'slot': slot, 'item_ids': []}
+        if coupled:
+            pending['coupled_slots'] = deepcopy(coupled)
+        return pending
+
+    def _requires_proposal(self, clarification):
+        return bool(self.pending_clarification is None and isinstance(clarification, dict) and
+                    clarification.get('coupled_slots'))
 
     def _compatible_resolution(self, operations):
         return self.resolution_matches(self.pending_clarification, operations)
@@ -75,11 +92,47 @@ class ScopedTaskState(ScopedDialogue, TaskState):
         if (response.get('unclear') or
                 {'out_of_scope': 'unsupported_value', 'ambiguous': 'ambiguous_value'}.get(intent) != pending['kind']):
             raise ValueError('Only clear fields alongside a matching unresolved value clarification may be staged.')
-        if any(operation.get('slot') == pending['slot'] for operation in operations):
-            raise ValueError('A proposal cannot decide the unresolved field.')
+        group = [pending['slot']] + pending.get('coupled_slots', [])
+        if any(operation.get('slot') in group for operation in operations):
+            raise ValueError('A proposal cannot decide an unresolved field.')
         trial = deepcopy(self)
         trial.apply(operations)
-        return {'ops': deepcopy(operations), 'state': deepcopy(trial.values), 'base_version': self.version}
+        proposal = {'ops': deepcopy(operations), 'state': deepcopy(trial.values), 'base_version': self.version}
+        if pending.get('coupled_slots'):
+            proposal.update(coupled_slots=group, answered_slots=[], remaining_slots=deepcopy(group))
+        return proposal
+
+    def _plan_resolution(self, operations):
+        proposal = self.pending_proposal
+        if proposal is None or not proposal.get('coupled_slots'):
+            return None
+        combined = proposal['ops'] + operations
+        if len(combined) > 40:
+            raise ValueError('A coupled transaction supports at most 40 staged operations.')
+        group = proposal['coupled_slots']
+        if any(operation.get('slot') in group and
+               (operation.get('op') not in {'set', 'add'} or operation.get('value') in (None, '', []))
+               for operation in operations):
+            raise ValueError('Coupled fields require explicit nonempty positive answers.')
+        # Use the committed base, not the draft preview, so staged add operations
+        # are applied exactly once and no malformed late operation can leak out.
+        trial = deepcopy(self)
+        trial.apply(combined, _resolve_proposal=True)
+        answered = set(proposal['answered_slots'])
+        answered.update(operation['slot'] for operation in operations
+                        if operation['slot'] in group and operation['op'] in {'set', 'add'} and
+                        trial.values.get(operation['slot']) not in (None, '', []))
+        remaining = [key for key in group if key not in answered]
+        if not remaining:
+            return None
+        next_slot = remaining[0]
+        pending = self._clarification({'kind': 'ambiguous_value', 'slot': next_slot,
+            'item_ids': [], 'coupled_slots': [key for key in group if key != next_slot]})
+        staged = {'ops': deepcopy(combined), 'state': deepcopy(trial.values),
+                  'base_version': proposal['base_version'], 'coupled_slots': deepcopy(group),
+                  'answered_slots': [key for key in group if key in answered],
+                  'remaining_slots': remaining}
+        return {'pending': pending, 'proposal': staged}
 
     def _pending_action(self):
         pending = self.pending_clarification
@@ -108,7 +161,8 @@ class ScopedTaskState(ScopedDialogue, TaskState):
         return Action('repair' if self.awaiting_correction else 'readback')
 
     def router_context(self):
-        return {'state': deepcopy(self.values), 'requested_slot': self._missing(),
+        requested = self.pending_clarification['slot'] if self.pending_clarification else self._missing()
+        return {'state': deepcopy(self.values), 'requested_slot': requested,
                 'awaiting_correction': self.awaiting_correction,
                 'pending_clarification': deepcopy(self.pending_clarification),
                 'pending_proposal': deepcopy(self.pending_proposal)}

@@ -177,7 +177,7 @@ def test_clinic_production_schema_is_strict_and_has_only_configured_fields(clini
     assert set(schema['$defs']['Operation']['properties']['slot']['enum']) == {'doctor', 'date', 'time'}
     assert {slot for slot in ('doctor', 'date', 'time', 'unknown', None)
             if Draft202012Validator(schema['properties']['clarification']).is_valid(
-                {'kind': 'ambiguous_value', 'slot': slot, 'item_ids': []})} == {'doctor', 'date', 'time'}
+                {'kind': 'ambiguous_value', 'slot': slot, 'item_ids': [], 'coupled_slots': None})} == {'doctor', 'date', 'time'}
     valid = payload(ops=[dict(op='set', slot='doctor', value='doctor_a')])
     assert parse_response(json.dumps(valid), clinic_config).ops[0].value == 'doctor_a'
     for field in valid:

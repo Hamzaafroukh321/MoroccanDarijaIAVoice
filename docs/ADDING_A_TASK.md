@@ -57,6 +57,14 @@ request, a correction, an unsupported option with held details, cancellation,
 completed readback and a separate confirmation. An accepted state is only a
 confirmed local task record; no external action is executed.
 
+Include a linked-choice check when multiple fields describe one alternative:
+choosing one field must not silently inherit an old value for another linked
+field. Flat routing supports an explicit `coupled_slots` clarification. Partial
+answers stay in one pending transaction; each next question gets a fresh ID and
+the group commits only after its fields are answered. Unrelated saved values
+remain intact. This depends on the router declaring the relationship; test the
+domain's actual wording rather than assuming schema validation proves meaning.
+
 The temporary English service-counter fixture proves field/schema/readback/UI
 extensibility locally. It is not a shipped third voice demo or an ASR result.
 Custom collections, nested task stacks, external bookings and arbitrary slot

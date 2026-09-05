@@ -178,7 +178,14 @@ class VoiceSession:
         await self.emit({'type':'state','state':mode.value,'slots':deepcopy(self.task.values),
                          'clarify_count':self.clarify_count,
                          'pending_clarification':deepcopy(getattr(self.task,'pending_clarification',None)),
-                         'pending_proposal':{'state':deepcopy(proposal['state'])} if proposal else None})
+                         'pending_proposal':self._proposal_preview(proposal)})
+
+    @staticmethod
+    def _proposal_preview(proposal):
+        if proposal is None:
+            return None
+        return {key:deepcopy(proposal[key]) for key in
+                ('state','coupled_slots','answered_slots','remaining_slots') if key in proposal}
 
     async def start(self):
         self.worker=asyncio.create_task(self._worker())
@@ -355,7 +362,7 @@ class VoiceSession:
             await self.emit({'type':'playback_complete','playback_id':playback_id,
                 'action':action.kind,'slots':deepcopy(self.task.values),
                 'pending_clarification':deepcopy(getattr(self.task,'pending_clarification',None)),
-                'pending_proposal':{'state':deepcopy(proposal['state'])} if proposal is not None else None,
+                'pending_proposal':self._proposal_preview(proposal),
                 'version':self.task.version,'spoken_version':version,
                 'readback_complete':self.task.readback_version==self.task.version})
             if action.kind=='readback':
@@ -409,7 +416,9 @@ class VoiceSession:
                     action=(self.task.consume(payload, retained_request=self.pending_request)
                             if payload.get('discard_request') is not None else self.task.consume(payload))
                     if (payload.get('discard_request') is not None or payload.get('discard_clarification') is not None or
-                            (had_proposal and payload.get('resolves_clarification') is not None)):
+                            (had_proposal and payload.get('resolves_clarification') is not None and
+                             getattr(self.task,'pending_clarification',None) is None and
+                             getattr(self.task,'pending_proposal',None) is None)):
                         self.pending_request=None
                     elif getattr(self.task,'pending_clarification',None) is not None:
                         if (self.pending_request is None or
