@@ -1,0 +1,29 @@
+{
+  "id": "s02",
+  "domain": "clinic",
+  "title": "Appointment details given slot by slot",
+  "difficulty": "owner_to_annotate",
+  "audio": "recordings/clinic/s02.wav",
+  "speakers": null,
+  "background_noise": "owner_to_annotate",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": false
+    }
+  ],
+  "gold_state": {
+    "doctor": null,
+    "date": null,
+    "time": null,
+    "patient_name": null,
+    "phone": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

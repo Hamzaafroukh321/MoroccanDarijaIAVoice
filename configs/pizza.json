@@ -1,0 +1,750 @@
+{
+  "domain_id": "pizza",
+  "language": "ary",
+  "needs_human_review": true,
+  "slots": [
+    {
+      "id": "size",
+      "type": "enum",
+      "required": true,
+      "critical": true,
+      "multi": false,
+      "ask_order": 1,
+      "values": [
+        "small",
+        "medium",
+        "large"
+      ],
+      "aliases": {
+        "small": [
+          "[[TODO_DARIJA: small]]",
+          "petite",
+          "petit",
+          "small"
+        ],
+        "medium": [
+          "[[TODO_DARIJA: medium]]",
+          "moyenne",
+          "moyen",
+          "medium"
+        ],
+        "large": [
+          "[[TODO_DARIJA: large]]",
+          "grande",
+          "grand",
+          "large"
+        ]
+      },
+      "prompt_audio": "ask_size.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: what size would you like?]]",
+      "readback_audio": "rb_size.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for size]]"
+    },
+    {
+      "id": "toppings",
+      "type": "enum_list",
+      "required": false,
+      "critical": false,
+      "multi": true,
+      "ask_order": 2,
+      "values": [
+        "cheese",
+        "mushroom",
+        "olive",
+        "pepper",
+        "onion",
+        "tuna",
+        "chicken",
+        "beef"
+      ],
+      "aliases": {
+        "cheese": [
+          "fromage",
+          "[[TODO_DARIJA: cheese]]"
+        ],
+        "mushroom": [
+          "champignon",
+          "[[TODO_DARIJA: mushroom]]"
+        ],
+        "olive": [
+          "olives",
+          "[[TODO_DARIJA: olive]]"
+        ],
+        "pepper": [
+          "poivron",
+          "[[TODO_DARIJA: pepper]]"
+        ],
+        "onion": [
+          "oignon",
+          "[[TODO_DARIJA: onion]]"
+        ],
+        "tuna": [
+          "thon",
+          "[[TODO_DARIJA: tuna]]"
+        ],
+        "chicken": [
+          "poulet",
+          "[[TODO_DARIJA: chicken]]"
+        ],
+        "beef": [
+          "viande",
+          "[[TODO_DARIJA: beef]]"
+        ]
+      },
+      "prompt_audio": "ask_toppings.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: what would you like on it?]]",
+      "readback_audio": "rb_toppings.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for toppings]]"
+    },
+    {
+      "id": "quantity",
+      "type": "integer",
+      "required": true,
+      "critical": true,
+      "min": 1,
+      "max": 20,
+      "ask_order": 3,
+      "prompt_audio": "ask_quantity.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: how many?]]",
+      "readback_audio": "rb_quantity.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for quantity]]"
+    },
+    {
+      "id": "drink",
+      "type": "enum_list",
+      "required": false,
+      "critical": false,
+      "multi": true,
+      "ask_order": 4,
+      "values": [
+        "cola",
+        "fanta",
+        "water",
+        "none"
+      ],
+      "aliases": {
+        "cola": [
+          "coca",
+          "cola",
+          "coca-cola"
+        ],
+        "fanta": [
+          "fanta"
+        ],
+        "water": [
+          "[[TODO_DARIJA: water]]",
+          "eau"
+        ],
+        "none": [
+          "[[TODO_DARIJA: nothing]]",
+          "rien"
+        ]
+      },
+      "prompt_audio": "ask_drink.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: any drinks?]]",
+      "readback_audio": "rb_drink.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for drink]]"
+    },
+    {
+      "id": "phone",
+      "type": "phone",
+      "required": true,
+      "critical": true,
+      "ask_order": 5,
+      "prompt_audio": "ask_phone.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: what is your phone number?]]",
+      "readback_audio": "rb_phone.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for phone]]"
+    },
+    {
+      "id": "address",
+      "type": "address",
+      "required": true,
+      "critical": true,
+      "ask_order": 6,
+      "prompt_audio": "ask_address.wav",
+      "prompt_text_ary": "[[TODO_DARIJA: where should we deliver?]]",
+      "readback_audio": "rb_address.wav",
+      "readback_text_ary": "[[TODO_DARIJA: readback label for address]]",
+      "tts_allowed": true
+    }
+  ],
+  "endpointing": {
+    "base_silence_ms": 900,
+    "hesitation_hold_ms": 600,
+    "continuation_hold_ms": 900,
+    "digit_hold_ms": 700,
+    "max_wait_ms": 2500,
+    "min_speech_duration_ms": 250,
+    "vad_threshold": 0.5,
+    "tail_token_count": 2,
+    "digit_complete_lengths": [
+      10,
+      12
+    ],
+    "max_segment_ms": 30000,
+    "partial_timeout_ms": 3000
+  },
+  "overlap": {
+    "confidence_floor": 0.45,
+    "min_tokens_per_second": 1.2,
+    "rms_std_ceiling": 0.18,
+    "max_clarifies": 3,
+    "required_signals": 2
+  },
+  "responses": {
+    "greeting": {
+      "audio": "greeting.wav",
+      "text_ary": "[[TODO_DARIJA: hello, what would you like to order?]]",
+      "needs_human_review": true
+    },
+    "clarify_overlap": {
+      "audio": "clarify.wav",
+      "text_ary": "[[TODO_DARIJA: sorry, one at a time please]]",
+      "needs_human_review": true
+    },
+    "confirm_prefix": {
+      "audio": "confirm_pre.wav",
+      "text_ary": "[[TODO_DARIJA: so your order is]]",
+      "needs_human_review": true
+    },
+    "confirm_question": {
+      "audio": "confirm_q.wav",
+      "text_ary": "[[TODO_DARIJA: is that correct?]]",
+      "needs_human_review": true
+    },
+    "accepted": {
+      "audio": "accepted.wav",
+      "text_ary": "[[TODO_DARIJA: perfect, your order is registered]]",
+      "needs_human_review": true
+    },
+    "handoff": {
+      "audio": "handoff.wav",
+      "text_ary": "[[TODO_DARIJA: I'll pass you to a colleague]]",
+      "needs_human_review": true
+    },
+    "not_understood": {
+      "audio": "notund.wav",
+      "text_ary": "[[TODO_DARIJA: sorry, could you repeat?]]",
+      "needs_human_review": true
+    }
+  },
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "sample_rate_hz": 16000,
+    "channels": 1,
+    "sample_width_bytes": 2,
+    "frame_ms": 32,
+    "max_recording_ms": 240000,
+    "connection_timeout_ms": 10000,
+    "stop_timeout_ms": 10000,
+    "idle_timeout_ms": 15000,
+    "max_buffered_frames": 64,
+    "recordings_dir": "bench/recordings",
+    "results_dir": "bench/results",
+    "websocket_path": "/ws",
+    "echo_cancellation": true,
+    "noise_suppression": false,
+    "auto_gain_control": false
+  },
+  "engine": {
+    "barge_in_frames": 3,
+    "playback_ack_timeout_ms": 120000,
+    "max_session_ms": 600000,
+    "torch_threads": 1,
+    "max_pending_segments": 8,
+    "transcript_cache_entries": 128
+  },
+  "stt": {
+    "model": "atlasia/moulsot.v0.3",
+    "moulsot_protocol": "gradio",
+    "moulsot_api_name": "transcribe",
+    "language": "Arabic",
+    "groq_model": "whisper-large-v3-turbo",
+    "groq_url": "https://api.groq.com/openai/v1/audio/transcriptions",
+    "timeout_ms": 60000,
+    "temperature": 0.0,
+    "max_upload_bytes": 25000000,
+    "rate_limit_file": "bench/results/groq_usage.json",
+    "limits": [
+      {
+        "window_seconds": 60,
+        "requests": 20
+      },
+      {
+        "window_seconds": 86400,
+        "requests": 2000
+      },
+      {
+        "window_seconds": 3600,
+        "audio_seconds": 7200
+      },
+      {
+        "window_seconds": 86400,
+        "audio_seconds": 28800
+      }
+    ]
+  },
+  "router": {
+    "model": "openai/gpt-oss-120b",
+    "url": "https://api.groq.com/openai/v1/chat/completions",
+    "timeout_ms": 30000,
+    "max_tokens": 1024,
+    "temperature": 0.0,
+    "retries": 1
+  },
+  "audio_output": {
+    "gap_ms": 120,
+    "audio_dir": "audio",
+    "connector_audio": "connector.wav",
+    "digit_pattern": "digit_{value}.wav",
+    "number_pattern": "number_{value}.wav",
+    "enum_pattern": "value_{value}.wav",
+    "character_pattern": "character_{value}.wav",
+    "number_max": 20,
+    "date_format": "%Y-%m-%d",
+    "time_format": "%H:%M",
+    "tts_endpoint": "",
+    "tts_timeout_ms": 30000,
+    "tts_enabled": false,
+    "characters": {},
+    "fragments": {
+      "connector.wav": {
+        "text_ary": "[[TODO_DARIJA: and]]",
+        "needs_human_review": true
+      },
+      "digit_0.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 0]]",
+        "needs_human_review": true
+      },
+      "digit_1.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 1]]",
+        "needs_human_review": true
+      },
+      "digit_2.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 2]]",
+        "needs_human_review": true
+      },
+      "digit_3.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 3]]",
+        "needs_human_review": true
+      },
+      "digit_4.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 4]]",
+        "needs_human_review": true
+      },
+      "digit_5.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 5]]",
+        "needs_human_review": true
+      },
+      "digit_6.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 6]]",
+        "needs_human_review": true
+      },
+      "digit_7.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 7]]",
+        "needs_human_review": true
+      },
+      "digit_8.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 8]]",
+        "needs_human_review": true
+      },
+      "digit_9.wav": {
+        "text_ary": "[[TODO_DARIJA: digit 9]]",
+        "needs_human_review": true
+      },
+      "number_0.wav": {
+        "text_ary": "[[TODO_DARIJA: number 0]]",
+        "needs_human_review": true
+      },
+      "number_1.wav": {
+        "text_ary": "[[TODO_DARIJA: number 1]]",
+        "needs_human_review": true
+      },
+      "number_2.wav": {
+        "text_ary": "[[TODO_DARIJA: number 2]]",
+        "needs_human_review": true
+      },
+      "number_3.wav": {
+        "text_ary": "[[TODO_DARIJA: number 3]]",
+        "needs_human_review": true
+      },
+      "number_4.wav": {
+        "text_ary": "[[TODO_DARIJA: number 4]]",
+        "needs_human_review": true
+      },
+      "number_5.wav": {
+        "text_ary": "[[TODO_DARIJA: number 5]]",
+        "needs_human_review": true
+      },
+      "number_6.wav": {
+        "text_ary": "[[TODO_DARIJA: number 6]]",
+        "needs_human_review": true
+      },
+      "number_7.wav": {
+        "text_ary": "[[TODO_DARIJA: number 7]]",
+        "needs_human_review": true
+      },
+      "number_8.wav": {
+        "text_ary": "[[TODO_DARIJA: number 8]]",
+        "needs_human_review": true
+      },
+      "number_9.wav": {
+        "text_ary": "[[TODO_DARIJA: number 9]]",
+        "needs_human_review": true
+      },
+      "number_10.wav": {
+        "text_ary": "[[TODO_DARIJA: number 10]]",
+        "needs_human_review": true
+      },
+      "number_11.wav": {
+        "text_ary": "[[TODO_DARIJA: number 11]]",
+        "needs_human_review": true
+      },
+      "number_12.wav": {
+        "text_ary": "[[TODO_DARIJA: number 12]]",
+        "needs_human_review": true
+      },
+      "number_13.wav": {
+        "text_ary": "[[TODO_DARIJA: number 13]]",
+        "needs_human_review": true
+      },
+      "number_14.wav": {
+        "text_ary": "[[TODO_DARIJA: number 14]]",
+        "needs_human_review": true
+      },
+      "number_15.wav": {
+        "text_ary": "[[TODO_DARIJA: number 15]]",
+        "needs_human_review": true
+      },
+      "number_16.wav": {
+        "text_ary": "[[TODO_DARIJA: number 16]]",
+        "needs_human_review": true
+      },
+      "number_17.wav": {
+        "text_ary": "[[TODO_DARIJA: number 17]]",
+        "needs_human_review": true
+      },
+      "number_18.wav": {
+        "text_ary": "[[TODO_DARIJA: number 18]]",
+        "needs_human_review": true
+      },
+      "number_19.wav": {
+        "text_ary": "[[TODO_DARIJA: number 19]]",
+        "needs_human_review": true
+      },
+      "number_20.wav": {
+        "text_ary": "[[TODO_DARIJA: number 20]]",
+        "needs_human_review": true
+      },
+      "value_small.wav": {
+        "text_ary": "[[TODO_DARIJA: value small]]",
+        "needs_human_review": true
+      },
+      "value_medium.wav": {
+        "text_ary": "[[TODO_DARIJA: value medium]]",
+        "needs_human_review": true
+      },
+      "value_large.wav": {
+        "text_ary": "[[TODO_DARIJA: value large]]",
+        "needs_human_review": true
+      },
+      "value_cheese.wav": {
+        "text_ary": "[[TODO_DARIJA: value cheese]]",
+        "needs_human_review": true
+      },
+      "value_mushroom.wav": {
+        "text_ary": "[[TODO_DARIJA: value mushroom]]",
+        "needs_human_review": true
+      },
+      "value_olive.wav": {
+        "text_ary": "[[TODO_DARIJA: value olive]]",
+        "needs_human_review": true
+      },
+      "value_pepper.wav": {
+        "text_ary": "[[TODO_DARIJA: value pepper]]",
+        "needs_human_review": true
+      },
+      "value_onion.wav": {
+        "text_ary": "[[TODO_DARIJA: value onion]]",
+        "needs_human_review": true
+      },
+      "value_tuna.wav": {
+        "text_ary": "[[TODO_DARIJA: value tuna]]",
+        "needs_human_review": true
+      },
+      "value_chicken.wav": {
+        "text_ary": "[[TODO_DARIJA: value chicken]]",
+        "needs_human_review": true
+      },
+      "value_beef.wav": {
+        "text_ary": "[[TODO_DARIJA: value beef]]",
+        "needs_human_review": true
+      },
+      "value_cola.wav": {
+        "text_ary": "[[TODO_DARIJA: value cola]]",
+        "needs_human_review": true
+      },
+      "value_fanta.wav": {
+        "text_ary": "[[TODO_DARIJA: value fanta]]",
+        "needs_human_review": true
+      },
+      "value_water.wav": {
+        "text_ary": "[[TODO_DARIJA: value water]]",
+        "needs_human_review": true
+      },
+      "value_none.wav": {
+        "text_ary": "[[TODO_DARIJA: value none]]",
+        "needs_human_review": true
+      }
+    },
+    "needs_human_review": true,
+    "date_separator_audio": "date_separator.wav",
+    "time_separator_audio": "time_separator.wav",
+    "recording_poll_ms": 500
+  },
+  "normalization": {
+    "number_words": {
+      "zéro": 0,
+      "un": 1,
+      "deux": 2,
+      "trois": 3,
+      "quatre": 4,
+      "cinq": 5,
+      "six": 6,
+      "sept": 7,
+      "huit": 8,
+      "neuf": 9,
+      "dix": 10,
+      "onze": 11,
+      "douze": 12,
+      "treize": 13,
+      "quatorze": 14,
+      "quinze": 15,
+      "seize": 16,
+      "zero": 0,
+      "une": 1,
+      "dix-sept": 17,
+      "dix sept": 17,
+      "dix-huit": 18,
+      "dix huit": 18,
+      "dix-neuf": 19,
+      "dix neuf": 19,
+      "vingt": 20,
+      "vingt et un": 21,
+      "vingt-deux": 22,
+      "vingt deux": 22,
+      "vingt-trois": 23,
+      "vingt trois": 23,
+      "vingt-quatre": 24,
+      "vingt quatre": 24,
+      "vingt-cinq": 25,
+      "vingt cinq": 25,
+      "vingt-six": 26,
+      "vingt six": 26,
+      "vingt-sept": 27,
+      "vingt sept": 27,
+      "vingt-huit": 28,
+      "vingt huit": 28,
+      "vingt-neuf": 29,
+      "vingt neuf": 29,
+      "trente": 30,
+      "trente et un": 31,
+      "trente-deux": 32,
+      "trente deux": 32,
+      "trente-trois": 33,
+      "trente trois": 33,
+      "trente-quatre": 34,
+      "trente quatre": 34,
+      "trente-cinq": 35,
+      "trente cinq": 35,
+      "trente-six": 36,
+      "trente six": 36,
+      "trente-sept": 37,
+      "trente sept": 37,
+      "trente-huit": 38,
+      "trente huit": 38,
+      "trente-neuf": 39,
+      "trente neuf": 39,
+      "quarante": 40,
+      "quarante et un": 41,
+      "quarante-deux": 42,
+      "quarante deux": 42,
+      "quarante-trois": 43,
+      "quarante trois": 43,
+      "quarante-quatre": 44,
+      "quarante quatre": 44,
+      "quarante-cinq": 45,
+      "quarante cinq": 45,
+      "quarante-six": 46,
+      "quarante six": 46,
+      "quarante-sept": 47,
+      "quarante sept": 47,
+      "quarante-huit": 48,
+      "quarante huit": 48,
+      "quarante-neuf": 49,
+      "quarante neuf": 49,
+      "cinquante": 50,
+      "cinquante et un": 51,
+      "cinquante-deux": 52,
+      "cinquante deux": 52,
+      "cinquante-trois": 53,
+      "cinquante trois": 53,
+      "cinquante-quatre": 54,
+      "cinquante quatre": 54,
+      "cinquante-cinq": 55,
+      "cinquante cinq": 55,
+      "cinquante-six": 56,
+      "cinquante six": 56,
+      "cinquante-sept": 57,
+      "cinquante sept": 57,
+      "cinquante-huit": 58,
+      "cinquante huit": 58,
+      "cinquante-neuf": 59,
+      "cinquante neuf": 59,
+      "soixante": 60,
+      "soixante et un": 61,
+      "soixante-deux": 62,
+      "soixante deux": 62,
+      "soixante-trois": 63,
+      "soixante trois": 63,
+      "soixante-quatre": 64,
+      "soixante quatre": 64,
+      "soixante-cinq": 65,
+      "soixante cinq": 65,
+      "soixante-six": 66,
+      "soixante six": 66,
+      "soixante-sept": 67,
+      "soixante sept": 67,
+      "soixante-huit": 68,
+      "soixante huit": 68,
+      "soixante-neuf": 69,
+      "soixante neuf": 69,
+      "soixante-dix": 70,
+      "soixante dix": 70,
+      "soixante et onze": 71,
+      "soixante-douze": 72,
+      "soixante douze": 72,
+      "soixante-treize": 73,
+      "soixante treize": 73,
+      "soixante-quatorze": 74,
+      "soixante quatorze": 74,
+      "soixante-quinze": 75,
+      "soixante quinze": 75,
+      "soixante-seize": 76,
+      "soixante seize": 76,
+      "soixante-dix-sept": 77,
+      "soixante dix sept": 77,
+      "soixante-dix-huit": 78,
+      "soixante dix huit": 78,
+      "soixante-dix-neuf": 79,
+      "soixante dix neuf": 79,
+      "quatre-vingts": 80,
+      "quatre vingts": 80,
+      "quatre-vingt-un": 81,
+      "quatre vingt un": 81,
+      "quatre-vingt-deux": 82,
+      "quatre vingt deux": 82,
+      "quatre-vingt-trois": 83,
+      "quatre vingt trois": 83,
+      "quatre-vingt-quatre": 84,
+      "quatre vingt quatre": 84,
+      "quatre-vingt-cinq": 85,
+      "quatre vingt cinq": 85,
+      "quatre-vingt-six": 86,
+      "quatre vingt six": 86,
+      "quatre-vingt-sept": 87,
+      "quatre vingt sept": 87,
+      "quatre-vingt-huit": 88,
+      "quatre vingt huit": 88,
+      "quatre-vingt-neuf": 89,
+      "quatre vingt neuf": 89,
+      "quatre-vingt-dix": 90,
+      "quatre vingt dix": 90,
+      "quatre-vingt-onze": 91,
+      "quatre vingt onze": 91,
+      "quatre-vingt-douze": 92,
+      "quatre vingt douze": 92,
+      "quatre-vingt-treize": 93,
+      "quatre vingt treize": 93,
+      "quatre-vingt-quatorze": 94,
+      "quatre vingt quatorze": 94,
+      "quatre-vingt-quinze": 95,
+      "quatre vingt quinze": 95,
+      "quatre-vingt-seize": 96,
+      "quatre vingt seize": 96,
+      "quatre-vingt-dix-sept": 97,
+      "quatre vingt dix sept": 97,
+      "quatre-vingt-dix-huit": 98,
+      "quatre vingt dix huit": 98,
+      "quatre-vingt-dix-neuf": 99,
+      "quatre vingt dix neuf": 99,
+      "cent": 100,
+      "mille": 1000
+    },
+    "darija_numbers": {
+      "[[TODO_DARIJA: supply reviewed numeral mappings]]": 0
+    },
+    "needs_human_review": true,
+    "phone_country_code": "212",
+    "phone_local_prefixes": [
+      "06",
+      "07"
+    ],
+    "phone_length": 10,
+    "currency_aliases": {
+      "dirham": "MAD",
+      "dirhams": "MAD",
+      "dh": "MAD",
+      "dhs": "MAD"
+    },
+    "date_input_formats": [
+      "%Y-%m-%d",
+      "%d/%m/%Y"
+    ],
+    "time_input_formats": [
+      "%H:%M",
+      "%Hh%M"
+    ],
+    "relative_dates": {
+      "aujourd'hui": 0,
+      "demain": 1,
+      "après-demain": 2
+    },
+    "number_scales": {
+      "cent": 100,
+      "cents": 100,
+      "mille": 1000
+    },
+    "reference_date": null
+  },
+  "benchmark": {
+    "expected_scenarios": 20,
+    "silence_grid_ms": [
+      300,
+      500,
+      700,
+      900,
+      1100,
+      1300,
+      1500
+    ],
+    "hold_modes": [
+      "off",
+      "hesitation",
+      "continuation",
+      "all"
+    ],
+    "baseline_silence_ms": 500,
+    "selection_max_mel_ms": 1500,
+    "plot_width": 960,
+    "plot_height": 620,
+    "plot_margin": 80,
+    "tuned": false,
+    "tuning_source": null,
+    "tail_silence_ms": 6016,
+    "drain_timeout_ms": 180000
+  },
+  "display_name": "The family pizza order"
+}

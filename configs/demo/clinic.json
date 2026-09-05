@@ -1,0 +1,51 @@
+{
+  "needs_human_review": true,
+  "language_review": "Draft Darija for a fictional synthetic preview; no native review or accuracy claim.",
+  "label": "Fictional appointment preference demo",
+  "state_kind": "flat_scoped",
+  "profile_kind": "fictional_diagnostic",
+  "evaluation_eligible": false,
+  "task_scope": "fictional appointment preferences: doctor, date and time only; no availability check or booking",
+  "fields": ["doctor", "date", "time"],
+  "required_slots": ["doctor", "date", "time"],
+  "slot_overrides": {
+    "doctor": {
+      "values": ["doctor_a", "doctor_b"],
+      "aliases": {
+        "doctor_a": ["doctor a", "doctor A", "الطبيب ألف", "طبيب ألف", "ألف"],
+        "doctor_b": ["doctor b", "doctor B", "الطبيب باء", "طبيب باء", "باء"]
+      }
+    }
+  },
+  "transaction_schema": {"root_slots": ["doctor", "date", "time"], "collection": null, "item_slots": [], "exclusive_values": {}},
+  "questions": {
+    "doctor": "بغيتي الطبيب ألف ولا الطبيب باء؟",
+    "date": "شنو التاريخ اللي بغيتي؟",
+    "time": "فاش من ساعة بغيتي؟"
+  },
+  "labels": {"doctor": "الطبيب التجريبي", "date": "التاريخ", "time": "الساعة"},
+  "values": {"doctor_a": "الطبيب ألف", "doctor_b": "الطبيب باء"},
+  "readback_order": ["doctor", "date", "time"],
+  "readback_formats": {"date": "day_month_year", "time": "24_hour"},
+  "readback_prefix": "الاختيارات ديالك فهاد التجربة:",
+  "readback_question": "واش هادشي صحيح؟",
+  "responses": {
+    "greeting": "سلام! هادي تجربة، ما كنحجزوش مواعيد.",
+    "accepted": "تأكدات الاختيارات التجريبية. ما تحجز حتى موعد.",
+    "handoff": "نوقفو التجربة هنا. ما تحجز حتى موعد.",
+    "listen": "شنو بغيتي تبدل؟",
+    "not_understood": "وضح ليا الاختيار عفاك.",
+    "clarify_overlap": "واحد بواحد عفاكم.",
+    "unsupported_option": "هاد الاختيار ما كاينش فالتجربة. الاختيارات:",
+    "unsupported_value": "هاد الاختيار ما كاينش فالتجربة.",
+    "ambiguous_value": "وضح ليا الاختيار عفاك.",
+    "unintelligible": "وضح ليا الاختيار عفاك."
+  },
+  "ui": {
+    "title": "Fictional appointment preference demo",
+    "note": "Choose fictional doctor A or B, a preferred date and time, then change a detail and confirm. Draft Darija with a synthetic voice. This demo does not check availability or book appointments.",
+    "state_title": "Your demo preferences",
+    "state_empty": "Your fictional doctor, preferred date and time will appear here.",
+    "completion_text": "Your demo preferences were confirmed. No availability was checked and no appointment was booked."
+  }
+}

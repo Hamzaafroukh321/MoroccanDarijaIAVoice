@@ -1,0 +1,28 @@
+{
+  "id": "s18",
+  "domain": "pizza",
+  "title": "Speaker changes their mind twice on the same slot",
+  "difficulty": "hard",
+  "audio": "recordings/pizza/s18.wav",
+  "speakers": 3,
+  "background_noise": "owner_to_annotate",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": true
+    }
+  ],
+  "gold_state": {
+    "size": null,
+    "quantity": null,
+    "phone": null,
+    "address": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

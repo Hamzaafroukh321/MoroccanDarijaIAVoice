@@ -1,0 +1,5 @@
+* text=auto eol=lf
+# Unified diffs need a literal space on empty context lines.
+*.patch whitespace=-blank-at-eol
+# Markdown permits trailing spaces for explicit line breaks.
+*.md whitespace=-blank-at-eol

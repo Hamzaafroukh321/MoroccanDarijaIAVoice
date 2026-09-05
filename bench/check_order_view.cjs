@@ -1,0 +1,26 @@
+// Local DOM rendering diagnostic; no browser or provider calls.
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const source = fs.readFileSync('web/app.js', 'utf8');
+const renderer = source.slice(source.indexOf('function showSlots('), source.indexOf('function handleVoiceEvent('));
+const empty = {hidden: false};
+const slots = {children: [], replaceChildren() { this.children = []; }, append(...nodes) { this.children.push(...nodes); }};
+const document = {getElementById: () => empty, createElement: tag => ({tag, textContent: ''})};
+const context = vm.createContext({slots, document});
+vm.runInContext(renderer, context);
+context.showSlots({items: []});
+assert.equal(empty.hidden, false);
+context.showSlots({items: [{id: 2, quantity: 1, size: 'large', toppings: ['cheese']}, {id: 5, size: 'small', toppings: []}], drink: ['none']});
+const rows = slots.children.map(node => node.textContent);
+assert.equal(rows[0], 'Pizza 1');
+assert.equal(rows[2], 'Pizza 2');
+assert.match(rows[1], /large.*cheese/);
+assert.match(rows[3], /not specified.*small.*no extra toppings/);
+assert.equal(rows[5], 'No drink');
+assert(!rows.some(value => value.includes('[object Object]')));
+context.showSlots({size: 'medium', toppings: ['olive']});
+assert.equal(slots.children[1].textContent, 'medium');
+const report = {passed: true, scope: 'DOM rendering diagnostic only; not microphone or browser usability', multi_item_rows: rows, legacy_rendering: true};
+fs.writeFileSync('bench/results/multi_item_view_check_20260905.json', JSON.stringify(report, null, 2) + '\n');
+console.log(JSON.stringify(report));

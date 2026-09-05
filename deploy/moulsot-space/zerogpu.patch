@@ -1,0 +1,43 @@
+--- a/app.py
++++ b/app.py
+@@ -10,6 +10,8 @@
+ import io
+ import os
+ from typing import Any, Dict, List, Optional, Tuple, Union
++
++import spaces  # Must precede Gradio, Torch and every CUDA-related import.
+ 
+ import gradio as gr
+ import numpy as np
+@@ -181,7 +183,7 @@
+ asr = Qwen3ASRModel.from_pretrained(
+     "atlasia/moulsot.v0.3",
+     dtype=torch.bfloat16,
+-    device_map="cpu",  # or cuda or mps
++    device_map="cuda",  # ZeroGPU emulates CUDA while loading at startup.
+     max_inference_batch_size=16,
+ )
+ 
+@@ -229,6 +231,7 @@
+ ]
+ 
+ 
++@spaces.GPU(duration=60)
+ def transcribe(
+     audio_upload: Any,
+     lang_disp: str,
+@@ -476,7 +479,7 @@
+ }
+ """
+ 
+-with gr.Blocks(theme=theme, css=css, title="Moulsot ASR — AtlasIA") as demo:
++with gr.Blocks(title="Moulsot ASR — AtlasIA") as demo:
+     # ── Header ────────────────────────────────────────────────────────────────
+     gr.Markdown(
+         """
+@@ -554,4 +557,4 @@
+ 
+ 
+ if __name__ == "__main__":
+-    demo.launch(ssr_mode=False)
++    demo.launch(ssr_mode=False, theme=theme, css=css)

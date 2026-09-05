@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f2eb">
+  <meta name="description" content="Darija Voice — a voice task-completion research prototype.">
+  <link rel="icon" href="data:,">
+  <title>Darija Voice</title>
+  <style>
+    :root { color-scheme: light; --paper: #f4f2eb; --ink: #173e36; --muted: #596960; --line: #d4dacf; --accent: #245f4d; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Segoe UI', system-ui, sans-serif; }
+    header, main, footer { width: min(1040px, calc(100% - 64px)); margin-inline: auto; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 30px; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 650; letter-spacing: -.02em; font-size: 20px; }
+    .mark { display: flex; align-items: center; justify-content: center; gap: 3px; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); }
+    .mark i { display: block; width: 3px; height: 12px; border-radius: 2px; background: var(--paper); }
+    .mark i:nth-child(2) { height: 20px; }
+    .tag, .eyebrow, .label { font-size: 11px; font-weight: 650; letter-spacing: .12em; text-transform: uppercase; }
+    .tag { color: var(--muted); }
+    main { padding-block: 36px 40px; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; color: var(--accent); }
+    .eyebrow::before { content: ''; width: 26px; height: 1px; background: currentColor; }
+    h1 { max-width: 750px; margin: 18px 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(40px, 5vw, 50px); line-height: 1.08; font-weight: 400; letter-spacing: -.045em; }
+    .intro { max-width: 560px; margin: 0; font-size: 17px; line-height: 1.75; color: var(--muted); }
+    .session { margin-top: 24px; padding: 28px 32px; background: #fafaf5; border: 1px solid var(--line); border-radius: 16px; }
+    .session-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .label { margin: 0; color: var(--muted); }
+    h2 { font-size: 22px; font-weight: 550; letter-spacing: -.025em; margin: 8px 0 0; }
+    .status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 30px; white-space: nowrap; }
+    .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #728579; }
+    .status[data-active="true"]::before { background: #bc4a32; }
+    .session-body { display: flex; align-items: center; justify-content: space-between; gap: 30px; border-top: 1px solid var(--line); margin-top: 24px; padding-top: 24px; }
+    #message { max-width: 540px; color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0; }
+    .session-message { min-width: 0; }
+    #progress-time { margin: 8px 0 0; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    button { font: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--accent); color: white; background: var(--accent); padding: 14px 22px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+    button:hover { background: var(--ink); }
+    button:focus-visible { outline: 3px solid #b46228; outline-offset: 4px; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button.secondary { color: var(--ink); background: transparent; border-color: var(--line); }
+    button.secondary:hover { background: #e8eee6; }
+    .recovery-panel { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 20px; padding: 18px; border: 1px solid #b8c9ba; border-radius: 10px; background: #edf2e9; }
+    .recovery-panel p { margin: 6px 0 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+    .recovery-panel h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    .controls { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 28px; }
+    .controls .field { display: grid; gap: 8px; }
+    .controls label { font-size: 12px; color: var(--muted); }
+    select { min-width: 190px; font: inherit; color: var(--ink); background: #fafaf5; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+    select:focus-visible { outline: 3px solid #b46228; outline-offset: 3px; }
+    details { margin-top: 20px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+    summary { cursor: pointer; }
+    #transcript:empty, #slots:empty, #proposed-slots:empty { display: none; }
+    #transcript { margin-top: 24px; line-height: 1.7; unicode-bidi: plaintext; }
+    .demo-note { margin: 18px 0 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+    .conversation-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 32px; margin-top: 28px; border-top: 1px solid var(--line); padding-top: 24px; }
+    [hidden] { display: none !important; }
+    #conversation { list-style: none; padding: 0; margin: 16px 0 0; max-height: 340px; overflow-y: auto; }
+    #conversation li { padding: 12px 16px; margin-bottom: 10px; border-radius: 10px; background: #e8eee6; }
+    #conversation li[data-role="You"] { background: #f0ebe1; }
+    #conversation small { color: var(--muted); font-size: 11px; }
+    #conversation p { margin: 6px 0 0; line-height: 1.8; font-size: 18px; overflow-wrap: anywhere; }
+    .empty-state { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .conversation-grid #slots { border: 0; padding-top: 0; }
+    .task-details { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr); gap: 10px 16px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .task-details dt { text-transform: capitalize; color: var(--muted); overflow-wrap: anywhere; } .task-details dd { margin: 0; overflow-wrap: anywhere; }
+    .proposal-panel { margin-top: 24px; padding-top: 18px; border-top: 1px dashed #b4a47c; }
+    .proposal-panel .label { color: #725625; }
+    .proposal-note { margin: 9px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    #proposed-slots { margin-bottom: 0; padding-top: 0; border: 0; }
+    #playback { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+    audio { width: 100%; margin-top: 12px; }
+    #saved-path { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin-bottom: 0; }
+    footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--line); padding-block: 22px; font-size: 12px; color: var(--muted); }
+    @media (max-width: 600px) {
+      header, main, footer { width: calc(100% - 40px); }
+      header { padding-block: 22px; } .tag { font-size: 9px; letter-spacing: .08em; }
+      main { padding-block: 44px 36px; } h1 { font-size: 44px; } .intro { font-size: 16px; }
+      .session { padding: 22px; margin-top: 32px; } .session-top { align-items: start; flex-wrap: wrap; }
+      .session-body { align-items: stretch; flex-direction: column; gap: 22px; } button { width: 100%; }
+      .recovery-panel { align-items: stretch; flex-direction: column; gap: 14px; }
+      .conversation-grid { grid-template-columns: 1fr; gap: 24px; } .controls .field, select { width: 100%; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Darija Voice</div>
+    <span class="tag">Research prototype</span>
+  </header>
+  <main>
+    <div class="eyebrow">Made for real conversations</div>
+    <h1>Real conversations.<br>One shared task.</h1>
+    <p class="intro">A task-completion engine for Moroccan Darija. Built around the pauses, corrections, and shared conversations of everyday life.</p>
+    <div class="controls">
+      <div class="field"><label for="domain">Domain</label><select id="domain"><option value="pizza">Pizza order</option><option value="clinic">Clinic appointment</option></select></div>
+      <div class="field"><label for="mode">Session</label><select id="mode"><option value="demo">Live conversation demo</option><option value="capture">Microphone check</option><option value="voice">Reviewed voice task</option></select></div>
+    </div>
+    <details id="setup-panel"><summary>Voice setup needs attention</summary><ul id="setup"></ul></details>
+    <section class="session" aria-labelledby="session-title">
+      <div class="session-top">
+        <div><p class="label">Shared task</p><h2 id="session-title">Your shared task</h2></div>
+        <span class="status" id="status" role="status">Getting started</span>
+      </div>
+      <div class="session-body">
+        <div class="session-message">
+          <p id="message" aria-live="polite">Preparing the microphone check… If this message stays visible, enable JavaScript and reload.</p>
+          <p id="progress-time" aria-hidden="true" hidden></p>
+        </div>
+        <button id="record" type="button" disabled>Start recording</button>
+      </div>
+      <section id="recovery-panel" class="recovery-panel" aria-labelledby="recovery-title" aria-describedby="recovery-note" hidden>
+        <div><h3 id="recovery-title">Keep your saved details</h3><p id="recovery-note">Continue with the details below, then confirm them again.</p></div>
+        <button id="resume" type="button">Continue saved details</button>
+      </section>
+      <p id="demo-note" class="demo-note" hidden><span id="demo-voice-label">Synthetic Arabic voice</span> · Draft Darija<br><span id="demo-note-text">Share your preferences, then confirm the summary.</span><span id="xtts-license" hidden><br>Non-commercial voice demo · <a href="https://huggingface.co/coqui/XTTS-v2/blob/main/LICENSE.txt" target="_blank" rel="noopener">Voice license</a></span></p>
+      <p id="transcript" aria-live="polite" dir="auto"></p>
+      <div id="conversation-panel" class="conversation-grid" hidden>
+        <div><p class="label">Conversation</p><p id="conversation-empty" class="empty-state">Your words and the assistant’s replies will appear here.</p><ol id="conversation" role="log" aria-live="polite" aria-label="Conversation"></ol></div>
+        <div>
+          <p class="label" id="task-state-title">Task details</p>
+          <p id="order-empty" class="empty-state">Your details will appear here as you speak.</p>
+          <dl id="slots" class="task-details" aria-label="Current task details"></dl>
+          <section id="proposal-panel" class="proposal-panel" aria-labelledby="proposal-title" aria-describedby="proposal-note" aria-live="polite" hidden>
+            <p class="label" id="proposal-title">Proposed details</p>
+            <p id="proposal-note" class="proposal-note">Waiting for your answer before updating the task. These details are not confirmed.</p>
+            <p id="proposal-empty" class="empty-state" hidden>No details to display yet.</p>
+            <dl id="proposed-slots" class="task-details" aria-label="Proposed details waiting for your answer"></dl>
+          </section>
+        </div>
+      </div>
+      <div id="playback" hidden>
+        <p class="label" id="playback-label">Your recording</p>
+        <audio id="recording" controls aria-labelledby="playback-label"></audio>
+        <p id="saved-path"></p>
+      </div>
+    </section>
+  </main>
+  <footer><span>Darija Voice · Development build</span><span>Benchmark results pending</span></footer>
+  <script id="capture-config" type="application/json">{{CAPTURE_CONFIG}}</script>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+{
+  "needs_human_review": true,
+  "label": "Pizza pickup demo",
+  "language_review": "Draft Darija for an explicitly labeled synthetic demo; not the reviewed research bank.",
+  "tts_model": "canopylabs/orpheus-arabic-saudi",
+  "tts_voice": "fahad",
+  "tts_url": "https://api.groq.com/openai/v1/audio/speech",
+  "tts_timeout_ms": 30000,
+  "tts_max_chars": 200,
+  "elevenlabs": {
+    "tts_model": "eleven_multilingual_v2",
+    "tts_voice": "OfGMGmhShO8iL9jCkXy8",
+    "tts_voice_label": "Ghizlane — Moroccan Darija",
+    "tts_url": "https://api.elevenlabs.io/v1/text-to-speech/",
+    "tts_max_chars": 500,
+    "tts_output_format": "pcm_16000"
+  },
+  "azure": {
+    "tts_model": "azure-neural",
+    "tts_voice": "ar-MA-MounaNeural",
+    "tts_voice_label": "Mouna — Moroccan Arabic",
+    "tts_max_chars": 500
+  },
+  "darija_xtts": {
+    "tts_model": "medmac01/darija_xtt_2.0/model_2.1.pth",
+    "tts_voice": "author-default-speaker",
+    "tts_voice_label": "Darija XTTS 2.1",
+    "tts_url": "https://medmac01-darija-arabic-tts.hf.space",
+    "tts_api_name": "infer_EGTTS",
+    "tts_temperature": 0.65,
+    "tts_timeout_ms": 120000,
+    "tts_max_chars": 150,
+    "license_url": "https://huggingface.co/coqui/XTTS-v2/blob/main/LICENSE.txt"
+  },
+  "cache_dir": "bench/results/demo_voice_cache",
+  "base_silence_ms": 1400,
+  "max_segment_ms": 20000,
+  "max_session_ms": 300000,
+  "max_repairs": 3,
+  "order_schema_version": 2,
+  "order_max_items": 8,
+  "transaction_schema": {
+    "root_slots": ["drink"],
+    "collection": "items",
+    "item_slots": ["quantity", "size", "toppings"],
+    "exclusive_values": {"drink": ["none"]}
+  },
+  "router_max_tokens": 2048,
+  "item_label": "بيتزا",
+  "plain_toppings": "بلا مكونات زايدة",
+  "number_words": {
+    "واحد": 1, "واحدة": 1, "وحدة": 1,
+    "جوج": 2, "بجوج": 2, "زوج": 2,
+    "ثلاثة": 3, "تلاتة": 3, "ربعة": 4, "خمسة": 5,
+    "ستة": 6, "سبعة": 7,
+    "تمنية": 8, "تمانية": 8, "ثمانية": 8,
+    "تسعود": 9, "عشرة": 10,
+    "حضاش": 11, "حداش": 11, "طناش": 12,
+    "تلطاش": 13, "ربعطاش": 14, "خمسطاش": 15, "سطاش": 16,
+    "سبعطاش": 17, "تمنطاش": 18, "تسعطاش": 19, "عشرين": 20,
+    "الوحدة": 1, "الجوج": 2,
+    "التلاتة": 3, "الثلاثة": 3, "الربعة": 4, "الخمسة": 5,
+    "الستة": 6, "السبعة": 7,
+    "التمنية": 8, "التمانية": 8, "الثمانية": 8,
+    "التسعود": 9, "العشرة": 10,
+    "الحضاش": 11, "الحداش": 11, "الطناش": 12
+  },
+  "responses": {
+    "order_details": "شحال من بيتزا؟ وشنو فوق كل وحدة؟",
+    "drink_size": "حجم القارعة ما متوفرش. كوكا، فانتا، الما، ولا بلا مشروب؟",
+    "unsupported_drink": "كاين كوكا، فانتا، الما، ولا بلا مشروب.",
+    "unsupported_menu": "هاد التجربة غير للبيتزا. شنو بغيتي فيها؟",
+    "unsupported_option": "هاد الاختيار ما متوفرش. الاختيارات:",
+    "unintelligible": "ما سمعتش مزيان. شنو بغيتي؟",
+    "ambiguous": "أنهي بيتزا بغيتي تبدل؟ قول ليا الرقم والتغيير.",
+    "ambiguous_new_order": "قول ليا كل بيتزا بوحدها: الحجم والمكونات.",
+    "greeting": "سلام! شنو بغيتي نوجد ليك؟",
+    "not_understood": "سمح ليا، عاود ليا الطلب بشوية.",
+    "clarify_overlap": "سمح ليا، واحد بواحد عفاكم.",
+    "accepted": "صافي، تأكد الطلب التجريبي. شكراً!",
+    "handoff": "سمح ليا، خاص شي واحد يعاونك.",
+    "listen": "شنو بغيتي تبدل؟",
+    "multiple_items": "سمح ليا، خاص شي واحد يعاونك."
+  },
+  "questions": {
+    "quantity": "شحال من بيتزا بغيتي؟",
+    "size": "بغيتي صغيرة، متوسطة، ولا كبيرة؟",
+    "toppings": "شنو بغيتي فوق البيتزا؟",
+    "drink": "شنو بغيتي تشرب معاها؟"
+  },
+  "labels": {"quantity": "العدد", "size": "الحجم", "toppings": "المكونات", "drink": "المشروب"},
+  "values": {
+    "small": "صغيرة", "medium": "متوسطة", "large": "كبيرة",
+    "cheese": "فرماج", "mushroom": "فطر", "olive": "زيتون", "pepper": "فلفلة",
+    "onion": "بصلة", "tuna": "طون", "chicken": "دجاج", "beef": "لحم",
+    "cola": "كوكا", "fanta": "فانتا", "water": "الما", "none": "بلا مشروب"
+  },
+  "readback_prefix": "الطلب ديالك:",
+  "readback_question": "واش هادشي صحيح؟"
+}

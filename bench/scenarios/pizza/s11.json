@@ -1,0 +1,28 @@
+{
+  "id": "s11",
+  "domain": "pizza",
+  "title": "Speaker adds a topping after saying they were finished",
+  "difficulty": "medium",
+  "audio": "recordings/pizza/s11.wav",
+  "speakers": 2,
+  "background_noise": "owner_to_annotate",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": false
+    }
+  ],
+  "gold_state": {
+    "size": null,
+    "quantity": null,
+    "phone": null,
+    "address": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

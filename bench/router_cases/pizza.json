@@ -1,0 +1,610 @@
+{
+  "instructions": "Owner supplies all 30 natural Darija transcripts. Expected operations/flags are suggestions; edit them to match your exact wording. Mark each case reviewed only after checking both wording and gold labels. No model-generated gold labels. Ops are compared in order; confidence is excluded. These templates are not runnable eval data yet.",
+  "cases": [
+    {
+      "id": "r01",
+      "category": "straightforward",
+      "intent_to_express": "Ask for large size.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "large"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r02",
+      "category": "straightforward",
+      "intent_to_express": "Ask for medium size.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "medium"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r03",
+      "category": "straightforward",
+      "intent_to_express": "Ask for small size.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "small"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r04",
+      "category": "straightforward",
+      "intent_to_express": "Ask for quantity 2.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "quantity",
+            "value": 2
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r05",
+      "category": "straightforward",
+      "intent_to_express": "Ask for quantity 3 using French number words.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "quantity",
+            "value": 3
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r06",
+      "category": "straightforward",
+      "intent_to_express": "Choose cola.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "drink",
+            "value": [
+              "cola"
+            ]
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r07",
+      "category": "straightforward",
+      "intent_to_express": "Choose water.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "drink",
+            "value": [
+              "water"
+            ]
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r08",
+      "category": "straightforward",
+      "intent_to_express": "Give a fictional phone number 0612345678.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "phone",
+            "value": "0612345678"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r09",
+      "category": "straightforward",
+      "intent_to_express": "Give the fictional delivery address Rue Exemple 12.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "address",
+            "value": "Rue Exemple 12"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r10",
+      "category": "straightforward",
+      "intent_to_express": "Choose large size then quantity 2 in one utterance.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "large"
+          },
+          {
+            "op": "set",
+            "slot": "quantity",
+            "value": 2
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r11",
+      "category": "correction",
+      "intent_to_express": "Change size from large to small.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "size": "large"
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "small"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r12",
+      "category": "correction",
+      "intent_to_express": "Change quantity from 2 to 3.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "quantity": 2
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "quantity",
+            "value": 3
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r13",
+      "category": "correction",
+      "intent_to_express": "Replace cola with water.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "drink": [
+          "cola"
+        ]
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "drink",
+            "value": [
+              "water"
+            ]
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r14",
+      "category": "correction",
+      "intent_to_express": "Add olives to the existing cheese topping.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "toppings": [
+          "cheese"
+        ]
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "add",
+            "slot": "toppings",
+            "value": "olive"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r15",
+      "category": "correction",
+      "intent_to_express": "Remove mushrooms; retain cheese.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "toppings": [
+          "cheese",
+          "mushroom"
+        ]
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "remove",
+            "slot": "toppings",
+            "value": "mushroom"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r16",
+      "category": "correction",
+      "intent_to_express": "Correct the last digit of the phone: 0612345678 becomes 0612345679.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "phone": "0612345678"
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "phone",
+            "value": "0612345679"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r17",
+      "category": "correction",
+      "intent_to_express": "Replace the fictional address with Rue Exemple 15.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "address": "Rue Exemple 12"
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "address",
+            "value": "Rue Exemple 15"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r18",
+      "category": "correction",
+      "intent_to_express": "Change medium size to large, then quantity 1 to 2.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "size": "medium",
+        "quantity": 1
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "large"
+          },
+          {
+            "op": "set",
+            "slot": "quantity",
+            "value": 2
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r19",
+      "category": "correction",
+      "intent_to_express": "Explicitly clear the drink choice to decide later.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "drink": [
+          "cola"
+        ]
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "clear",
+            "slot": "drink",
+            "value": null
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r20",
+      "category": "correction",
+      "intent_to_express": "Replace all toppings with tuna.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {
+        "toppings": [
+          "cheese",
+          "olive"
+        ]
+      },
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "toppings",
+            "value": [
+              "tuna"
+            ]
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r21",
+      "category": "messy",
+      "intent_to_express": "Say only an affirmation (no order details).",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": false,
+        "is_affirmation": true,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r22",
+      "category": "messy",
+      "intent_to_express": "Say only a negation (no correction value).",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": true
+      }
+    },
+    {
+      "id": "r23",
+      "category": "messy",
+      "intent_to_express": "Ask an unrelated question, with no slot information.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r24",
+      "category": "messy",
+      "intent_to_express": "Hesitate without choosing anything.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r25",
+      "category": "messy",
+      "intent_to_express": "Ask for a size that is not small, medium or large.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r26",
+      "category": "messy",
+      "intent_to_express": "Mention two possible sizes without choosing one.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r27",
+      "category": "messy",
+      "intent_to_express": "Begin a phone number but leave it incomplete.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r28",
+      "category": "messy",
+      "intent_to_express": "Give contradictory quantities without a final choice.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [],
+        "unclear": true,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r29",
+      "category": "messy",
+      "intent_to_express": "Include irrelevant chatter then clearly choose medium size.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "size",
+            "value": "medium"
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    },
+    {
+      "id": "r30",
+      "category": "messy",
+      "intent_to_express": "Mix Darija and French but clearly choose fanta.",
+      "transcript": "",
+      "reviewed": false,
+      "state": {},
+      "expected": {
+        "ops": [
+          {
+            "op": "set",
+            "slot": "drink",
+            "value": [
+              "fanta"
+            ]
+          }
+        ],
+        "unclear": false,
+        "is_affirmation": false,
+        "is_negation": false
+      }
+    }
+  ]
+}

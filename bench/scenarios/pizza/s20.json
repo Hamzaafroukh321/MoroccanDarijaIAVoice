@@ -1,0 +1,28 @@
+{
+  "id": "s20",
+  "domain": "pizza",
+  "title": "Everyone talks at once for 3 s; engine must clarify, then complete",
+  "difficulty": "chaos",
+  "audio": "recordings/pizza/s20.wav",
+  "speakers": 3,
+  "background_noise": "owner_to_annotate",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": false
+    }
+  ],
+  "gold_state": {
+    "size": null,
+    "quantity": null,
+    "phone": null,
+    "address": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

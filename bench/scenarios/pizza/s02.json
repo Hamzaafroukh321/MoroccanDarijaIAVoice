@@ -1,0 +1,28 @@
+{
+  "id": "s02",
+  "domain": "pizza",
+  "title": "Complete order, slot by slot, answering each question",
+  "difficulty": "easy",
+  "audio": "recordings/pizza/s02.wav",
+  "speakers": 1,
+  "background_noise": "none",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": false
+    }
+  ],
+  "gold_state": {
+    "size": null,
+    "quantity": null,
+    "phone": null,
+    "address": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

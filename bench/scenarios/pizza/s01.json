@@ -1,0 +1,28 @@
+{
+  "id": "s01",
+  "domain": "pizza",
+  "title": "Complete order in one breath",
+  "difficulty": "easy",
+  "audio": "recordings/pizza/s01.wav",
+  "speakers": 1,
+  "background_noise": "none",
+  "needs_human_review": true,
+  "annotations_reviewed": false,
+  "utterances": [
+    {
+      "start_ms": null,
+      "end_ms": null,
+      "speaker": "A",
+      "transcript_ary": "[[TODO_DARIJA: owner transcription]]",
+      "is_correction": false
+    }
+  ],
+  "gold_state": {
+    "size": null,
+    "quantity": null,
+    "phone": null,
+    "address": null
+  },
+  "corrections": [],
+  "reference_date": null
+}

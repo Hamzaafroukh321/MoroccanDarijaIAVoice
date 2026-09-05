@@ -1,0 +1,147 @@
+--- a/app.py
++++ b/app.py
+@@ -1,3 +1,5 @@
++# Optional local profiling artifact; not deployed.
++# Baseline app.py SHA256: 32f09e6fd474ea82d32386fb0910307b276b6935b4d2f52bb826c695843d118d
+ # coding=utf-8
+ # Copyright 2026 AtlasIA Team.
+ # SPDX-License-Identifier: Apache-2.0
+@@ -231,6 +233,72 @@
+ ]
+ 
+ 
++# Optional profiling uses host wall time; it does not measure GPU kernel time.
++from contextlib import contextmanager
++from datetime import datetime, timezone
++import json
++import time
++from uuid import uuid4
++
++
++def _profile_emit(record):
++    try:
++        print(json.dumps(record, sort_keys=True), flush=True)
++    except Exception:
++        pass  # Logging must never change the existing API result or exception.
++
++
++@contextmanager
++def _profile_transcription():
++    if os.getenv("MOULSOT_PROFILE") != "1":
++        yield None
++        return
++    started = time.perf_counter()
++    record = {"profile_id": uuid4().hex,
++              "started_utc": datetime.now(timezone.utc).isoformat(),
++              "outcome": "ok", "parse_ms": None, "model_call_wall_ms": None,
++              "sample_rate_hz": None, "samples": None, "audio_duration_ms": None,
++              "error_type": None, "elapsed_clock": "perf_counter"}
++    _profile_emit({"event": "moulsot_profile_start", "profile_id": record["profile_id"],
++                   "started_utc": record["started_utc"]})
++    try:
++        yield record
++    except BaseException as exc:
++        record["outcome"] = "error"
++        record["error_type"] = type(exc).__name__
++        raise
++    finally:
++        record["body_ms"] = (time.perf_counter() - started) * 1000
++        _profile_emit({"event": "moulsot_profile_end", **record})
++
++
++@contextmanager
++def _profile_phase(record, name):
++    if record is None:
++        yield
++        return
++    started = time.perf_counter()
++    try:
++        yield
++    finally:
++        record[name] = (time.perf_counter() - started) * 1000
++
++
++def _profile_input(record, audio_obj):
++    if record is not None:
++        try:
++            samples, sample_rate = len(audio_obj[0]), int(audio_obj[1])
++            duration = samples * 1000 / sample_rate
++        except Exception:
++            return  # Optional metadata must not change valid inference behavior.
++        record.update(samples=samples, sample_rate_hz=sample_rate, audio_duration_ms=duration)
++
++
++def _profile_outcome(record, outcome):
++    if record is not None:
++        record["outcome"] = outcome
++
++
+ @spaces.GPU(duration=60)
+ def transcribe(
+     audio_upload: Any,
+@@ -240,32 +308,39 @@
+     """
+     Main transcription function with ZeroGPU support.
+     """
+-    if audio_upload is None:
+-        return (
+-            "",
+-            "",
+-            None,
+-            "<div style='color:#666'>Please upload an audio file first.</div>",
+-        )
+-
+-    try:
+-        audio_obj = _parse_audio_any(audio_upload)
+-    except ValueError as e:
+-        return "", "", None, f"<div style='color:red'>Error: {str(e)}</div>"
+-
+-    language = None
+-    if lang_disp and lang_disp not in ("Auto (Darija / Arabic)", "Auto"):
+-        language = lang_map.get(lang_disp, lang_disp)
+-
+-    # Perform transcription
+-    results = asr.transcribe(audio=audio_obj, language=language)
+-
+-    if not isinstance(results, list) or len(results) != 1:
+-        return "", "", None, "<div style='color:red'>Unexpected result format.</div>"
+-
+-    r = results[0]
+-
+-    return getattr(r, "text", "") or ""
++    with _profile_transcription() as profile:
++        if audio_upload is None:
++            _profile_outcome(profile, "invalid_input")
++            return (
++                "",
++                "",
++                None,
++                "<div style='color:#666'>Please upload an audio file first.</div>",
++            )
++
++        try:
++            with _profile_phase(profile, "parse_ms"):
++                audio_obj = _parse_audio_any(audio_upload)
++            _profile_input(profile, audio_obj)
++        except ValueError as e:
++            _profile_outcome(profile, "invalid_input")
++            return "", "", None, f"<div style='color:red'>Error: {str(e)}</div>"
++
++        language = None
++        if lang_disp and lang_disp not in ("Auto (Darija / Arabic)", "Auto"):
++            language = lang_map.get(lang_disp, lang_disp)
++
++        # Perform transcription
++        with _profile_phase(profile, "model_call_wall_ms"):
++            results = asr.transcribe(audio=audio_obj, language=language)
++
++        if not isinstance(results, list) or len(results) != 1:
++            _profile_outcome(profile, "invalid_result")
++            return "", "", None, "<div style='color:red'>Unexpected result format.</div>"
++
++        r = results[0]
++
++        return getattr(r, "text", "") or ""
+ 
+ 
+ # ── Build Gradio interface ────────────────────────────────────────────────────

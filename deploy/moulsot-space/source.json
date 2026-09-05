@@ -1,0 +1,12 @@
+{
+  "source_url": "https://huggingface.co/spaces/Viego09/MoulSot.v0.3/raw/8e061a85beef1483c7e4f38d6029eec6d281ac73/app.py",
+  "source_sha256": "d9d58c2137a39c7731f46bad7e12d28289dd9c6060fabb1c2b2ad8d7695fe9ce",
+  "patched_sha256": "4624506494558ce5897e83dd155c5a940ceba8071561f90c82b34b3f11cf02e7",
+  "license": "Apache-2.0",
+  "remote_applied": true,
+  "remote_commit": "435dd0945997d112a703024c5d5db79ee12dd1fe",
+  "hosted_startup": "RUNNING",
+  "api_info_status": 200,
+  "included_sample_transcription": "passed through browser; approximately 21 seconds; not a kitchen benchmark",
+  "quota_adjustment": "60 second inference ceiling; prior 120 second reservation was rejected despite remaining quota"
+}
