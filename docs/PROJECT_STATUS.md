@@ -29,6 +29,9 @@ the pizza demo does not place orders.
 The September 5, 2026 local suite passed **842 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
+The source-only Git export also passed all 842 tests with the same single skip
+after aligning the profiling artifact checksum with Git's canonical LF files.
+No local recordings, `.env` file or model downloads were included in that export.
 
 A bounded synthetic clinic sequence used actual MoulSot, Groq and Darija XTTS to
 collect preferences, correct a time, read the result back and accept a separate

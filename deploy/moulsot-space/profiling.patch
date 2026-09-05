@@ -2,7 +2,7 @@
 +++ b/app.py
 @@ -1,3 +1,5 @@
 +# Optional local profiling artifact; not deployed.
-+# Baseline app.py SHA256: 32f09e6fd474ea82d32386fb0910307b276b6935b4d2f52bb826c695843d118d
++# Baseline app.py SHA256: 4624506494558ce5897e83dd155c5a940ceba8071561f90c82b34b3f11cf02e7
  # coding=utf-8
  # Copyright 2026 AtlasIA Team.
  # SPDX-License-Identifier: Apache-2.0
