@@ -1,0 +1,32 @@
+--- a/app.py
++++ b/app.py
+@@ -241,17 +241,12 @@
+     Main transcription function with ZeroGPU support.
+     """
+     if audio_upload is None:
+-        return (
+-            "",
+-            "",
+-            None,
+-            "<div style='color:#666'>Please upload an audio file first.</div>",
+-        )
++        raise gr.Error("Please upload an audio file first.")
+ 
+     try:
+         audio_obj = _parse_audio_any(audio_upload)
+-    except ValueError as e:
+-        return "", "", None, f"<div style='color:red'>Error: {str(e)}</div>"
++    except ValueError:
++        raise gr.Error("Audio input could not be read.") from None
+ 
+     language = None
+     if lang_disp and lang_disp not in ("Auto (Darija / Arabic)", "Auto"):
+@@ -261,7 +256,7 @@
+     results = asr.transcribe(audio=audio_obj, language=language)
+ 
+     if not isinstance(results, list) or len(results) != 1:
+-        return "", "", None, "<div style='color:red'>Unexpected result format.</div>"
++        raise gr.Error("MoulSot returned an unexpected result format.")
+ 
+     r = results[0]
+ 

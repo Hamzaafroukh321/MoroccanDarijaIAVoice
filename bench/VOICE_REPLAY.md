@@ -140,6 +140,12 @@ Missing, malformed or mismatching optional metadata does not change whether a
 valid transcript succeeds. `bridge_reported` is a separate bounded label, not
 independent verification.
 
+For the hosted Space, a successful HTTP/SSE completion does not by itself prove
+that its text is speech. The adapter recognizes the deployed single-Textbox
+framing of three legacy error returns and reports an ASR failure without copying
+their details. A normal empty transcript retains its previous behavior; this is
+not a broad HTML filter or an attempt to infer whether arbitrary text is speech.
+
 Standalone bridges without launch metadata remain unverified. Hosted, custom
 and redirected endpoints cannot claim local launch evidence, and a fallback
 attempt gets its own provider record. Old reports lacking these fields cannot

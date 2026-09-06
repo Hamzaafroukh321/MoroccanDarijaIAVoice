@@ -100,6 +100,29 @@ def moulsot_inference_error(payload, authenticated):
     return STTError('MoulSot inference failed. Check the Space container logs.')
 
 
+def moulsot_error_envelope(data):
+    """Recognize the owned Space's legacy errors stringified by one Textbox.
+
+    Only exact tuple/status framing is recognized, never arbitrary HTML or an
+    occurrence of "Error" in speech. Error details are neither parsed nor
+    reflected. Other Gradio layouts and genuine empty transcripts keep their
+    existing behavior.
+    """
+    if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], str):
+        return False
+    value = data[0]
+    for status in ("<div style='color:red'>Unexpected result format.</div>",
+                   "<div style='color:#666'>Please upload an audio file first.</div>"):
+        if value == str(('', '', None, status)):
+            return True
+    # Python repr uses double quotes for the usual status, or single quotes
+    # with escaped style quotes when the exception contains double quotes.
+    return ((value.startswith("('', '', None, \"<div style='color:red'>Error: ") and
+             value.endswith('</div>")')) or
+            (value.startswith("('', '', None, '<div style=\\'color:red\\'>Error: ") and
+             value.endswith("</div>')")))
+
+
 @dataclass(frozen=True)
 class Transcript:
     text: str
@@ -322,6 +345,8 @@ class SpeechToText:
                     elif line.startswith('data:') and event == 'complete':
                         data=json.loads(line.partition(':')[2])
                         if not isinstance(data,list) or not data or not isinstance(data[0],str): raise STTError('Invalid MoulSot transcription.')
+                        if moulsot_error_envelope(data):
+                            raise STTError('MoulSot inference failed. Check the Space container logs.')
                         return Transcript(data[0].strip(),None,'moulsot')
         raise STTError('MoulSot stream ended without a result.')
 

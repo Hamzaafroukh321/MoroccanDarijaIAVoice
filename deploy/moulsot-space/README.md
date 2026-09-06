@@ -1,5 +1,29 @@
 # MoulSot ZeroGPU startup repair
 
+## Prepared error-output fix (not deployed)
+
+`error-output.patch` fixes three legacy error returns in the baseline below.
+The current API has one Textbox output. Gradio stringifies the old four-element
+error tuples as transcript text; the patch raises static `gr.Error` messages
+instead. Successful transcription, including genuine empty text, stays unchanged.
+Parser details are not exposed in the error message.
+
+This patch targets the exact `app.py` baseline recorded in `source.json`
+(remote commit `435dd0945997d112a703024c5d5db79ee12dd1fe`, SHA256
+`4624506494558ce5897e83dd155c5a940ceba8071561f90c82b34b3f11cf02e7`).
+The baseline, `source.json`, and profiled variant remain historical snapshots;
+preparing this patch does not change the running Space. Apply it to a working
+copy of that baseline only for a separately authorized Space update. It has not
+been combined with the optional profiling patch.
+
+The local engine also rejects the deployed single-Textbox error framing before
+routing, so old hosted responses cannot become user transcripts. This client
+guard remains useful while the Space still has its original error returns.
+Validation uses isolated source functions, fake Gradio/model components and
+mock HTTP/SSE responses; no live error was deliberately provoked.
+
+## Baseline and optional profiling
+
 An optional, **not deployed** profiling variant is now available as
 `profiling.patch` and `app.profiled.py`. It preserves the model, API, GPU duration
 and existing return behavior, and enables host-wall timing logs only with

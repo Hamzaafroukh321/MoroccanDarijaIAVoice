@@ -131,6 +131,25 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 
 ## Completed steps and prior evidence (historical)
 
+- 2026-09-06: source inspection of the owned hosted Space found three legacy
+  error tuples returned to one Textbox. Pinned Gradio6.14.0 output handling
+  stringifies the tuple, which the old adapter accepted as speech. Isolated
+  exact-source functions and a before/after MockTransport reproduction establish
+  this failure path, not the cause of a historical live incident. The adapter
+  now rejects only verified single-output error framing without reflecting the
+  status body. Eighteen new tests and82relevant cases pass; pending/committed
+  details stay unchanged, no router or extraTTS on the demo error path. Normal
+  empty transcripts, unknown layouts and configured fallback policy are preserved.
+  Evidence: bench/results/hosted_error_before_after_20260906.json and
+  bench/results/hosted_error_envelope_guard_20260906.md. No inference calls.
+  A separate error-output.patch is prepared against the immutable hosted app
+  baseline. It raises static gr.Error in the three legacy tuple branches;
+  deployment is NOT authorized by this automation, so it stays unapplied.
+  Ten independent patch tests pass. Full suite after both additions:
+  1425passed/1native-review skip,14known warnings,63.61seconds.
+  The current CPU/JSON runtime is unaffected by this hosted-only error guard;
+  no model restart or repeat speech check is needed for the change.
+
 - 2026-09-06: private listening pack completed with10browser checks. Separate
   duration-selected human speech diagnostic prepared from the ungated Casablanca
   corpus (author-attributed transcriptions, no owner/native task review claim).

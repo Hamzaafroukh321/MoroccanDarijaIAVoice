@@ -11,6 +11,9 @@ the pizza demo does not place orders.
   replies, interruption handling and resource cleanup.
 - Actual MoulSot recognition, using a hosted Space or the optional local bridge.
   Groq interprets structured task operations; it does not replace MoulSot with Whisper.
+- Known hosted MoulSot errors accidentally formatted as transcript text are
+  rejected before routing. The demo stops with a safe ASR error instead of
+  sending provider diagnostics into the conversation or another repair prompt.
 - Local ASR reports separate launch-verified model/runtime hashes, selected device
   policy and matching bridge acknowledgments. Hosted/custom endpoints cannot
   inherit local verification. Actual device placement remains unknown.
@@ -57,7 +60,15 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1397 tests, with 1 skipped native-review
+An offline before/after reproduction found a hosted error-contract bug: the
+Space's single Textbox stringifies three legacy error tuples, and the old
+adapter accepted that string as successful speech. Eighteen new tests verify
+the narrow error guard, unchanged legitimate empty/text responses, safe error
+messages and preserved pending work. This is source-derived regression evidence,
+not proof that this bug caused an earlier live incident. No provider calls were
+needed to reproduce or test it.
+
+The latest September 6, 2026 local suite passed **1425 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
