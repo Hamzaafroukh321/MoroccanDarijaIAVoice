@@ -61,7 +61,27 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    The linked-address design is complete in
    bench/results/collection_linked_addresses_design_20260906.md; it recommends
    same-row linked fields first, with explicit row/field coverage in one draft.
-   **Next:** implement and verify the same-row linked-address contract offline.
+   Same-row linked_addresses staging, scoped preview masking, router schema,
+   UI and documentation are implemented. 36 new offline cases and10 mocked
+   browser checks pass; full suite1115passed/1skip before the exact-answer work.
+   Live first call omitted linkage; generic prompt refinement then declared it,
+   but the next exact answer 'tripod' repeated the current question (two calls,
+   no further continuation). Saved state stayed unchanged. See
+   bench/results/collection_linked_prompt_20260906.json; no ASR/TTS calls.
+   Completed: exact configured enum/integer answers to an active linked question
+   resolve locally under its current ID/version with separate telemetry. The
+   saved actual opening now advances 'tripod' -> fresh quantity question -> '3'
+   -> correct unconfirmed readback, preserving other rows/root details, with
+   zero HTTP attempts/quota reservations. Longer/ambiguous replies still route.
+   Evidence: bench/results/collection_local_followup_20260906.json and
+   collection_linked_implementation_20260906.md. Full suite1195passed/1skip.
+   Total this continuation:6 Groq calls,0 ASR/TTS. Do not rerun these green cases.
+
+   **Next bounded step:** assess sharing the exact-answer contract with active
+   flat clinic linked questions, using existing configured enum aliases only.
+   First verify authority/version and pending-coverage parity; do not guess
+   dates/times, add unreviewed ASR aliases, infer companion values or count local
+   lookup as a Groq/ASR success. Use saved pending fixtures before provider work.
    Cross-row/root links remain unsupported. Do not silently reuse flat
    coupled_slots or alter successful pizza/clinic speech scripts.
    Native speech quality still needs owner-supplied reviewed cases/recordings.
@@ -100,10 +120,13 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-06T00:25:34 Casablanca,
-  supervisorPID29736 (launcher wrapper23052).
+  --start --hosted-fallback --device cpu at 2026-09-06T01:25:36 Casablanca,
+  supervisorPID12380 (launcher wrapper37148).
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/context_refresh_20260906.json records the no-inference checks.
+  bench/results/collection_refresh_20260906.json records the no-inference checks.
+  The configured collection, linked-address and exact-answer changes are loaded;
+  no new shipped voice domain was added. Before refresh there were no established
+  engine connections; STOP closed owned services and freed all three ports.
   Context is absent from both shipped task configs. Status-file sharing failures
   now receive bounded retries and independent best-effort publication; they cannot
   kill healthy services. Check updated_at because locked snapshots can be stale.
@@ -112,7 +135,7 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   bench/results/supervisor_status_failure_20260906.md. Exact lock owner unknown.
   Whole readback remains default; conditional clarification schema, bounded retry
   explicit enum guard, coupled-field staging and saved-detail recovery are active.
-  Runtime checkpoint suite1001passed/1native-review skip (30.14s), including46 context
+  Earlier context checkpoint suite1001passed/1native-review skip (30.14s), including46 context
   transport/preflight cases, native Windows sharing semantics and coupled-error
   preservation. An initial full run exposed an overly exact timing assertion in
   a transport fixture; deterministic pacing and delayed-ACK controls corrected
@@ -151,8 +174,9 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 
 - The user explicitly requested the latest GitHub snapshot; it was pushed to
   Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
-  That source checkpoint passed1071tests/1native-review skip. The running server
-  predates its configurable collection extension. An earlier clean source-only export
+  That published checkpoint passed1071tests/1native-review skip. The refreshed
+  local server includes subsequent fixes verified by1195tests/1skip. These newer
+  changes have not been published. An earlier clean source-only export
   passed842/1skip after LF checksum correction. Later autonomous changes remain
   local unless separately authorized for publication; no automatic force pushes.
 

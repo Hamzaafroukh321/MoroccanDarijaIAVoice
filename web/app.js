@@ -494,15 +494,28 @@ function renderTaskDetails(values, target) {
 
 function showProposal(proposal) {
   const original = proposal?.state;
-  const values = original && typeof original === 'object' && !Array.isArray(original) ? { ...original } : null;
+  const values = original && typeof original === 'object' && !Array.isArray(original) ? structuredClone(original) : null;
   const unresolved = Array.isArray(proposal?.remaining_slots) ? proposal.remaining_slots : [];
   if (values) unresolved.forEach(field => { delete values[field]; });
+  const unresolvedLabels = unresolved.map(field => demoLabels[field] || field);
+  if (values && demoStateKind === 'configured_collection_scoped' && demoCollection &&
+      Array.isArray(values[demoCollection.name]) && Array.isArray(proposal?.remaining_addresses)) {
+    const rows = values[demoCollection.name];
+    for (const address of proposal.remaining_addresses) {
+      if (!address || !demoCollection.item_slots.includes(address.slot)) continue;
+      const index = rows.findIndex(item => item.id === address.item_id);
+      if (index < 0) continue;
+      // Hide inherited values only in this draft row; saved rows and other addresses stay intact.
+      delete rows[index][address.slot];
+      unresolvedLabels.push(`${demoCollection.label} ${index + 1}: ${demoLabels[address.slot] || address.slot}`);
+    }
+  }
   const visible = values !== null && typeof values === 'object' && !Array.isArray(values);
   proposalPanel.hidden = !visible;
   proposedSlots.replaceChildren();
   document.getElementById('proposal-empty').hidden = true;
-  document.getElementById('proposal-note').textContent = unresolved.length
-    ? `These changes stay pending until you answer: ${unresolved.map(field => config.demo_labels?.[field] || field).join(', ')}. Your saved details have not changed.`
+  document.getElementById('proposal-note').textContent = unresolvedLabels.length
+    ? `These changes stay pending until you answer: ${unresolvedLabels.join(', ')}. Your saved details have not changed.`
     : 'Waiting for your answer before updating the task. These details are not confirmed.';
   if (visible) document.getElementById('proposal-empty').hidden = renderTaskDetails(values, proposedSlots) > 0;
 }

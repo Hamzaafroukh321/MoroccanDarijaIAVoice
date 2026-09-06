@@ -14,7 +14,7 @@ from typing import Literal
 
 from engine.lexicon import AFFIRM_MARKERS, CORRECTION_MARKERS, NEGATE_MARKERS
 from engine.state import validate_operation
-from engine.dialogue import validate_resolution_identity, validate_request_discard
+from engine.dialogue import validate_resolution_identity, validate_request_discard, visible_proposal_state
 from engine.temporal_grounding import TemporalGroundingError, validate_temporal_grounding
 from engine.enum_grounding import EnumAlternativeError, validate_enum_alternatives
 from engine.stt import RateLimiter
@@ -398,9 +398,10 @@ def build_messages(config, state, transcript):
         proposal=context.get('pending_proposal')
         if proposal is not None:
             context['committed_state']=deepcopy(context['state'])
-            context['state']=deepcopy(proposal['state'])
-            for field in proposal.get('remaining_slots', []):
-                context['state'].pop(field, None)
+            context['state']=visible_proposal_state(proposal,
+                collection=context.get('collection') if configured_collection_demo(config) else None)
+            if configured_collection_demo(config):
+                context['pending_proposal']['state']=deepcopy(context['state'])
             if 'next_item_id' in proposal: context['next_item_id']=proposal['next_item_id']
             pending_scope=context.get('pending_clarification') or {}
             context['requested_slot']=pending_scope.get('slot')
@@ -430,11 +431,28 @@ class Router:
         self.limiter=RateLimiter(config,root)
         self.invalid_responses=0
         self.calls=[]
+        self.local_calls=[]
 
     async def close(self):
         if self.owns_client: await self.client.aclose()
 
     async def route(self, transcript, state):
+        if configured_collection_demo(self.config):
+            from engine.scoped_answers import exact_linked_answer
+            local_started = time.monotonic()
+            operation = exact_linked_answer(self.config, state, transcript)
+            if operation is not None:
+                parsed = parse_response(json.dumps(dict(ops=[operation], confidence=1.0,
+                    unclear=False, is_affirmation=False, is_negation=False, intent='task',
+                    clarification=None, resolves_clarification=state['pending_clarification']['id'],
+                    proposed_ops=[], discard_clarification=None, discard_request=None)), self.config)
+                from engine.collection_task import ConfiguredCollectionState
+                validate_resolution_identity(state['pending_clarification'], [operation],
+                    parsed.resolves_clarification, ConfiguredCollectionState.resolution_matches)
+                parsed._routing_source = 'configured_exact_answer'
+                self.local_calls.append({'ok': True, 'source': parsed._routing_source,
+                    'elapsed_ms': (time.monotonic() - local_started) * 1000})
+                return parsed
         if not self.api_key: raise RouterError('GROQ_API_KEY is required for the slot router.')
         messages=build_messages(self.config,state,transcript)
         all_output_failures=True

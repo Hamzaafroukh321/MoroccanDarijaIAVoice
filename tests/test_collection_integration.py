@@ -58,6 +58,9 @@ def response(**changes):
         is_affirmation=False, is_negation=False, clarification=None, proposed_ops=[],
         resolves_clarification=None, discard_clarification=None, discard_request=None)
     result.update(changes)
+    if result['clarification'] is not None:
+        result['clarification'] = {**result['clarification']}
+        result['clarification'].setdefault('linked_addresses', None)
     return result
 
 

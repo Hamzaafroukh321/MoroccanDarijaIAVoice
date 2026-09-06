@@ -7,6 +7,19 @@ mixin owns the protocol for retaining, resolving or discarding pending work.
 from copy import deepcopy
 
 
+def visible_proposal_state(proposal, collection=None):
+    """Omit unanswered fields from a detached preview, never committed state."""
+    values = deepcopy(proposal['state'])
+    for field in proposal.get('remaining_slots', []):
+        values.pop(field, None)
+    if collection:
+        for address in proposal.get('remaining_addresses', []):
+            for row in values.get(collection, []):
+                if row['id'] == address['item_id']:
+                    row.pop(address['slot'], None)
+    return values
+
+
 def validate_resolution_identity(pending, operations, resolution_id, matches):
     """Question-scoped answers must explicitly name the current question."""
     if resolution_id is not None:

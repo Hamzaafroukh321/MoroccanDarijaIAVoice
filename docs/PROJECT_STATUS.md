@@ -23,6 +23,10 @@ the pizza demo does not place orders.
   adapter with validated operations, correction handling and separate pending/
   committed values. A collection can contain repeated rows plus shared root fields;
   its router, readback, UI and recovery use the configured field names.
+- Same-row linked choices hold all declared fields in a draft until explicitly
+  answered, with fresh question IDs and masked unresolved preview fields. Exact
+  configured enum/integer answers can resolve the current linked question locally;
+  evidence separates these lookups from Groq requests.
 - Conditional clarification schema: ambiguous values require an affected field.
   Dependent alternatives are not silently selected or committed.
 - Explicit **Continue saved details** after an eligible provider failure. Recovery
@@ -34,7 +38,7 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1079 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1195 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
@@ -45,6 +49,13 @@ The new collection router passed one real English API compatibility check after
 fixing an overlapping-union HTTP400 rejection. Its strict wire schema constrains
 structure and configured names; local parsing validates root/row relationships
 before atomic state application. This check made no speech calls.
+Ten further mocked-browser checks validate linked-row preview masking. A real
+English router diagnostic first omitted linkage, then declared it after a generic
+prompt refinement but repeated the question after an exact answer. Replaying its
+saved successful opening with the local exact-answer path now advances from
+equipment to quantity and reaches the correct unconfirmed readback with zero new
+API calls. This fixes that scoped text flow; broader model interpretation and
+native spoken accuracy remain unproven.
 The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.

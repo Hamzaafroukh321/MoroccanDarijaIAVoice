@@ -153,6 +153,7 @@ class VoiceSession:
         self.started_at=time.monotonic()
         self.stt_call_start=len(getattr(stt,'calls',[]))
         self.router_call_start=len(getattr(router,'calls',[]))
+        self.local_router_call_start=len(getattr(router,'local_calls',[]))
         self.tts_call_start=len(getattr(bank,'calls',[]))
         self.done=asyncio.Event()
         self.last_assistant_action=None
@@ -176,7 +177,8 @@ class VoiceSession:
         if proposal is None:
             return None
         return {key:deepcopy(proposal[key]) for key in
-                ('state','coupled_slots','answered_slots','remaining_slots') if key in proposal}
+                ('state','coupled_slots','answered_slots','remaining_slots',
+                 'linked_addresses','answered_addresses','remaining_addresses') if key in proposal}
 
     async def start(self):
         self.worker=asyncio.create_task(self._worker())
@@ -409,6 +411,7 @@ class VoiceSession:
                         response=await self.router.route(normalized,context)
                     payload=response.model_dump() if hasattr(response,'model_dump') else response
                     record['router']=payload
+                    record['routing_source']=getattr(response, '_routing_source', 'groq')
                     had_proposal=getattr(self.task,'pending_proposal',None) is not None
                     had_clarification=getattr(self.task,'pending_clarification',None)
                     action=(self.task.consume(payload, retained_request=self.pending_request)
@@ -477,6 +480,7 @@ class VoiceSession:
         synthetic=sum(item['synthetic_samples'] for item in self.outputs)
         result={'session_id':self.session_id,'domain':self.config['domain_id'],'status':self.status,'state':deepcopy(self.task.values),'confirmed':self.task.confirmed,'clarify_count':self.clarify_count,'endpoints':self.endpoints,'turns':self.turns,'outputs':self.outputs,'synthetic_output_fraction':synthetic/total if total else 0.0,'synthetic_fraction_basis':'generated samples, including interrupted output','stt_calls':getattr(self.stt,'calls',[])[self.stt_call_start:],'router_calls':getattr(self.router,'calls',[])[self.router_call_start:],'saved_at':datetime.now(timezone.utc).isoformat()}
         result['transcript_requests']=deepcopy(self.transcript_requests)
+        result['local_router_calls']=deepcopy(getattr(self.router,'local_calls',[])[self.local_router_call_start:])
         result['progress_events']=deepcopy(self.progress_events)
         if self.resumed_from is not None:
             result['resumed_from']=self.resumed_from

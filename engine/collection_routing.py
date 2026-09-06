@@ -4,7 +4,7 @@ from copy import deepcopy
 import json
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 
 from engine.collection_schema import validate_collection_schema
 from engine.dialogue import validate_request_discard
@@ -32,11 +32,18 @@ class CollectionOperation(BaseModel):
         return self
 
 
+class CollectionAddress(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    item_id: int = Field(ge=1)
+    slot: str = Field(min_length=1)
+
+
 class CollectionClarification(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     kind: Literal['item_reference', 'ambiguous_value', 'unsupported_value', 'unintelligible']
     slot: str | None
     item_ids: list[int] = Field(max_length=10)
+    linked_addresses: list[CollectionAddress] | None = Field(default=None, max_length=39)
 
     @model_validator(mode='after')
     def scoped(self):
@@ -46,11 +53,14 @@ class CollectionClarification(BaseModel):
             raise ValueError('A value question requires an explicit field.')
         if self.kind == 'item_reference' and not self.item_ids:
             raise ValueError('An item-reference question requires explicit candidate row IDs.')
+        if self.linked_addresses and self.kind != 'ambiguous_value':
+            raise ValueError('Only ambiguous values can link row fields.')
         return self
 
 
 class CollectionRouterResponse(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
+    _routing_source: str = PrivateAttr(default='groq')
     ops: list[CollectionOperation] = Field(max_length=40)
     confidence: float = Field(ge=0, le=1, allow_inf_nan=False)
     unclear: bool
@@ -121,6 +131,17 @@ def parse_collection_response(raw, config):
             raise ValueError('An item-reference question cannot target a root field.')
         if question.kind != 'item_reference' and question.slot in items and len(question.item_ids) != 1:
             raise ValueError('A row-field question requires exactly one row ID.')
+        linked = question.linked_addresses or []
+        if linked:
+            if (question.slot not in items or len(question.item_ids) != 1 or
+                    len(linked) > min(39, len(items) - 1)):
+                raise ValueError('Linked questions require one primary row and distinct row fields.')
+            seen = {(question.item_ids[0], question.slot)}
+            for address in linked:
+                pair = (address.item_id, address.slot)
+                if address.item_id != question.item_ids[0] or address.slot not in items or pair in seen:
+                    raise ValueError('Linked fields must be unique companions in the same row.')
+                seen.add(pair)
     return response
 
 
@@ -148,14 +169,20 @@ def collection_response_format(config):
     def ids(minimum, maximum):
         return {'type': 'array', 'items': positive_id, 'minItems': minimum, 'maxItems': maximum}
 
-    def question(kinds, field, identifiers):
-        return _object(dict(kind={'type': 'string', 'enum': kinds}, slot=field, item_ids=identifiers))
+    def question(kind, field, identifiers, linked):
+        return _object(dict(kind={'type': 'string', 'enum': [kind]}, slot=field,
+                            item_ids=identifiers, linked_addresses=linked))
 
     maximum = config['demo']['collection_max_items']
     item_field = {'type': 'string', 'enum': items}
-    questions = [question(['ambiguous_value', 'unsupported_value'], field, ids(0, 1)),
-                 question(['item_reference'], {'anyOf': [item_field, null]}, ids(1, maximum)),
-                 question(['unintelligible'], {'anyOf': [field, null]}, ids(0, maximum))]
+    address = _object(dict(item_id=positive_id, slot=item_field))
+    linked = {'anyOf': [{'type': 'array', 'items': address,
+                        'maxItems': min(39, len(items) - 1)}, null]}
+    unlinked = {'anyOf': [{'type': 'array', 'items': address, 'maxItems': 0}, null]}
+    questions = [question('ambiguous_value', field, ids(0, 1), linked),
+                 question('unsupported_value', field, ids(0, 1), unlinked),
+                 question('item_reference', {'anyOf': [item_field, null]}, ids(1, maximum), unlinked),
+                 question('unintelligible', {'anyOf': [field, null]}, ids(0, maximum), unlinked)]
     properties = dict(
         ops={'type': 'array', 'items': operation, 'maxItems': 40},
         confidence={'type': 'number', 'minimum': 0, 'maximum': 1},
@@ -209,14 +236,31 @@ unknown, even if optional. An empty required list is not a completed answer.
 Corrections target only explicitly identified fields/rows. Root details remain separate.
 
 QUESTION AND DRAFT RULES
+Before returning an ambiguous_value question, check whether the alternatives
+change MORE THAN ONE field on the same row. If they do, the first question MUST
+list all other dependent row fields in linked_addresses. This is required even
+when those fields already have saved values. A single-field question with null
+linked_addresses preserves all other old fields and can create a combination
+the user never offered. Do not use it for a multi-field alternative.
+If the user explicitly says one field depends on the chosen value of another,
+link those configured fields. Linkage requests explicit answers; it does not
+commit, choose or infer the companion values. Ask one field first and preserve
+the relationship until all its fields have answers. Only independent fields
+may be omitted from the link or staged as initial proposed facts.
 When target identity is uncertain, use intent=ambiguous, ops=[], and item_reference
 with explicit candidate item_ids and a row field or null slot. Do not guess between rows.
 Use ambiguous_value for an uncertain field and unsupported_value for an unavailable
 configured value: intent=ambiguous or out_of_scope respectively, ops=[], no affirmation.
 A root value question has item_ids=[]; a row value question has exactly one known row
 ID. Use unintelligible with intent=unclear when the utterance cannot be interpreted.
-All clarifications have exactly kind, slot and item_ids. There is no coupled_slots
-contract for collections: never invent one or claim linked fields have been resolved.
+All clarifications have exactly kind, slot, item_ids and linked_addresses. Normally
+linked_addresses is null. For dependent alternatives within ONE identified row,
+ask one ambiguous_value field and list its companion fields as exact objects
+{item_id: the same row ID, slot: companion row field}. Do not repeat the primary
+field, use root fields, or link different rows. For example, choosing a new asset
+does not choose its associated quantity. There is no coupled_slots contract here.
+Cross-row/root linked alternatives are unsupported: do not select or stage pieces
+as if independent. Request a complete explicit alternative without changing facts.
 
 For an initial ambiguous_value or unsupported_value question, clearly extracted
 independent facts may be put in proposed_ops, never ops. They remain uncommitted.
@@ -226,11 +270,22 @@ otherwise that question names a nonexistent row. Do not stage proposed facts for
 item_reference or unintelligible question. Never combine an immediate commit with a
 new question. A response has at most forty operations in each operation list,
 and a saved draft plus its eventual answer must fit forty operations in total.
+Linked groups always remain in a draft, even with no independent proposed facts.
+Do not decide any group field in the initial proposed_ops. Only explicit positive
+answers count, including for optional fields; inherited old values do not count.
+Answer the current scope under its current question ID. You may supply explicitly
+stated companion values too. Partial answers are staged and the engine asks the
+next unanswered field with a fresh ID. Never invent completion metadata or infer
+an unspoken companion value from a selected option. Deleting the linked row or
+clearing/removing its linked fields cannot resolve the group; discard it explicitly.
 
 If pending_proposal exists, context.state is its preview, committed_state is separate,
 and next_item_id refers to the preview allocator. Emit only NEW answer/edits; never
 replay staged creates or other saved proposed_ops. The engine applies the saved draft
 once with a valid resolution. Independent edits cannot bypass a pending proposal.
+Unanswered linked addresses are omitted from context.state. committed_state may
+contain their old values, but those do not answer this request. The original request
+is retained until every linked field is explicitly answered or the group is discarded.
 Echo the CURRENT question ID in resolves_clarification only when the new utterance
 explicitly answers its current row/field scope with compatible operations. Bare yes/no
 or an edit to another row is not a resolution. A scoped item-reference deletion may

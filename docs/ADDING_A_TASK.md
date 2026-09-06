@@ -113,6 +113,80 @@ before opening the task. The temporary fixtures in
 a version with renamed collection and field IDs. They remain English engineering
 fixtures; do not ship their diagnostic text as Darija speech.
 
+### Link fields within one row
+
+A configured collection can keep related choices on the same row together with
+an explicit `linked_addresses` clarification. For example, if the alternatives
+are one camera or three tripods, choosing tripod alone must not silently keep
+the old camera quantity. The router can open this question:
+
+```json
+{
+  "kind": "ambiguous_value",
+  "slot": "asset",
+  "item_ids": [1],
+  "linked_addresses": [{"item_id": 1, "slot": "quantity"}]
+}
+```
+
+This is a router response fragment, not an extra profile setting or a spoken
+Darija example. The primary address comes from `slot` and the single `item_ids`
+entry. `linked_addresses` lists only its companions: each is an exact object
+with `item_id` and `slot`, names another configured row field on that same row,
+and appears once. It cannot repeat the primary address. The companion limit is
+the smaller of 39 and the number of configured row fields minus one.
+
+Nonempty linkage is allowed only for `ambiguous_value` on one identified row.
+That row may already be committed or be created in a validated initial proposal.
+A question about a new row needs the corresponding staged create operation;
+inventing a future ID is invalid. Root-field links, cross-row links, uncertain
+row identities and collection `coupled_slots` payloads are rejected. Omitted,
+null or empty `linked_addresses` preserves ordinary single-field behavior;
+new strict-schema responses include the nullable property.
+
+Opening a group creates an uncommitted proposal even when there are no other
+clear facts to stage. Independent facts may accompany the question, but initial
+proposed operations cannot decide any linked address. Each named field requires
+an explicit nonempty positive answer for this request, including optional fields
+and fields with old saved values. A redundant explicit set counts as an answer;
+an inherited value or bare yes/no does not. An answer may supply all linked
+values together, or the engine asks the next field under a fresh question ID.
+
+Partial answers preserve the original request, committed values and committed
+ID allocator. The engine validates the combined draft and new operations on a
+copy before changing pending state; the whole transaction is limited to forty
+operations. Clearing/removing a linked answer or deleting its participating row
+cannot resolve the group. Invalid or stale answers leave the draft intact.
+Once every address is answered, the engine commits the transaction once and
+requires a fresh complete readback followed by a separate affirmation.
+
+The proposal's `linked_addresses` metadata contains the **full ordered group**,
+including the primary address. `answered_addresses` and `remaining_addresses`
+record engine-owned coverage. A continuation question's companion list excludes
+its new primary address; use the proposal's remaining list to determine what
+still needs an answer. Its raw preview may contain inherited old values, so
+those values alone are not proof of coverage. Router-effective preview state
+and the browser's pending preview hide only the unresolved fields at their
+specific row IDs. Other rows and the separately displayed committed state stay
+intact; the pending panel names the row and field still needed.
+
+Discarding the current question drops the entire linked draft, including staged
+new rows and the original request. Older question IDs cannot discard or resume
+it. Provider-error recovery continues to restore committed values only, without
+pending linked answers or old confirmation authority. This contract enforces a
+relationship the router declares; it does not prove that the router or ASR will
+recognize every relationship in speech.
+
+An exact answer to an active linked question can resolve locally: the complete
+trimmed text must match one unique configured enum value/alias, or be an ASCII
+integer within that field's bounds. This path checks the current question,
+remaining address and committed version. It sets only that one field and leaves
+group completion and confirmation to the same state engine. Ambiguous aliases,
+confirmation words, punctuation, longer replies and unsupported types continue
+through normal routing. It performs no fuzzy matching or companion inference.
+Session evidence labels it `configured_exact_answer` and records local routing
+separately from Groq calls. Exact text matching does not establish ASR accuracy.
+
 ## Verify the new task
 
 Use the [multi-turn replay guide](../bench/VOICE_REPLAY.md) for supplied WAVs and
@@ -138,6 +212,11 @@ first row and referring to the remaining first row, asking which row was meant,
 resolving a proposed new row, cancellation, stale answers and final confirmation.
 Verify that a failed operation leaves the whole transaction unchanged and that
 required root details are requested independently of required row details.
+For same-row alternatives, also check a partial linked answer, an optional linked
+field with an old value, a proposal-created row, stale continuation IDs and
+cancellation between answers. Confirm that the pending preview hides only the
+unanswered address, then verify that the complete group commits once and needs a
+new readback. Keep root/cross-row linked scenarios as explicit rejection checks.
 
 The temporary English service-counter and equipment fixtures establish local
 field/schema/readback/UI behavior. The collection browser probe mocks its
@@ -147,9 +226,10 @@ These fixtures are not shipped voice demos, native language validation or ASR
 accuracy results. Test supplied audio through actual MoulSot separately.
 
 Configured collections currently support one collection only. Multiple or nested
-collections, cross-row coupled alternatives and `coupled_slots` clarifications
-for collection tasks are unsupported; the linked-field mechanism described
-above applies to flat tasks. Nested task stacks, external bookings and arbitrary
+collections, root/cross-row linked alternatives and `coupled_slots` clarifications
+for collection tasks are unsupported. Flat tasks use `coupled_slots`; configured
+collections use the same-row `linked_addresses` contract above. Nested task
+stacks, external bookings and arbitrary
 slot types also remain outside this extension. Use the field types supported by
 the base configuration schema and its runtime validation.
 

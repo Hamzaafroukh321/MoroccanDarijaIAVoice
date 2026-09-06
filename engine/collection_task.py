@@ -85,8 +85,10 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
             self.awaiting_correction = True
 
     def _scope(self, clarification, values):
-        if not isinstance(clarification, dict) or set(clarification) != {'kind', 'slot', 'item_ids'}:
-            raise ValueError('A configured collection clarification requires kind, slot and item_ids only.')
+        required = {'kind', 'slot', 'item_ids'}
+        if (not isinstance(clarification, dict) or not required <= set(clarification) or
+                set(clarification) - required - {'linked_addresses'}):
+            raise ValueError('A configured collection clarification requires kind, slot and item_ids, with optional linked_addresses.')
         kind, field, ids = (clarification[key] for key in ('kind', 'slot', 'item_ids'))
         if kind not in {'item_reference', 'ambiguous_value', 'unsupported_value', 'unintelligible'}:
             raise ValueError('Unknown configured collection clarification kind.')
@@ -108,7 +110,31 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
                 raise ValueError('A value question requires a field and exactly one row when row-scoped.')
         elif field in self.item_slots and len(ids) != 1:
             raise ValueError('An unintelligible row-field question requires exactly one row.')
-        return {'id': self._next_clarification_id, 'kind': kind, 'slot': field, 'item_ids': deepcopy(ids)}
+        linked = clarification.get('linked_addresses')
+        if linked is not None:
+            if not isinstance(linked, list) or len(linked) > min(39, len(self.item_slots) - 1):
+                raise ValueError('Linked addresses exceed the configured row-field limit.')
+            if linked and (kind != 'ambiguous_value' or field not in self.item_slots or len(ids) != 1):
+                raise ValueError('Only an ambiguous value question on one row can link addresses.')
+            seen = set()
+            for address in linked:
+                if (not isinstance(address, dict) or set(address) != {'item_id', 'slot'} or
+                        type(address['item_id']) is not int or address['item_id'] < 1 or
+                        address['item_id'] != ids[0] or not isinstance(address['slot'], str) or
+                        address['slot'] not in self.item_slots or address['slot'] == field):
+                    raise ValueError('Linked addresses must name other configured fields on the same row.')
+                pair = (address['item_id'], address['slot'])
+                if pair in seen:
+                    raise ValueError('Linked addresses must be distinct.')
+                seen.add(pair)
+        pending = {'id': self._next_clarification_id, 'kind': kind, 'slot': field, 'item_ids': deepcopy(ids)}
+        if linked:
+            pending['linked_addresses'] = deepcopy(linked)
+        return pending
+
+    def _requires_proposal(self, clarification):
+        return bool(self.pending_clarification is None and isinstance(clarification, dict) and
+                    clarification.get('linked_addresses'))
 
     def _clarification(self, clarification):
         values = self.pending_proposal['state'] if self.pending_proposal is not None else self.values
@@ -151,6 +177,37 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
                                if row['id'] == pending['item_ids'][0]), {})
             if target.get(pending['slot']) in (None, '', []):
                 raise ValueError('A value resolution must leave an explicit nonempty answer in its scope.')
+        proposal = self.pending_proposal
+        if proposal is None or not proposal.get('linked_addresses'):
+            return None
+        group = proposal['linked_addresses']
+        participating_id = group[0]['item_id']
+        addresses = {(address['item_id'], address['slot']) for address in group}
+        row = next(row for row in trial.values[self.collection] if row['id'] == participating_id)
+        for operation in operations:
+            if operation['op'] == 'delete' and operation['item_id'] == participating_id:
+                raise ValueError('A linked answer cannot delete its participating row.')
+            if (operation['item_id'], operation['slot']) in addresses and (
+                    operation['op'] not in {'set', 'add'} or operation['value'] in (None, '', []) or
+                    row.get(operation['slot']) in (None, '', [])):
+                raise ValueError('Linked addresses require explicit nonempty positive answers.')
+        answered = {(address['item_id'], address['slot']) for address in proposal['answered_addresses']}
+        answered.update((operation['item_id'], operation['slot']) for operation in operations
+            if (operation['item_id'], operation['slot']) in addresses and
+            operation['op'] in {'set', 'add'} and row.get(operation['slot']) not in (None, '', []))
+        remaining = [address for address in group if (address['item_id'], address['slot']) not in answered]
+        if remaining:
+            current = remaining[0]
+            next_pending = self._scope({'kind': 'ambiguous_value', 'slot': current['slot'],
+                'item_ids': [current['item_id']],
+                'linked_addresses': [address for address in group if address != current]}, trial.values)
+            staged = {'ops': deepcopy(combined), 'state': deepcopy(trial.values),
+                'next_item_id': trial.next_item_id, 'base_version': proposal['base_version'],
+                'linked_addresses': deepcopy(group),
+                'answered_addresses': [deepcopy(address) for address in group
+                    if (address['item_id'], address['slot']) in answered],
+                'remaining_addresses': deepcopy(remaining)}
+            return {'pending': next_pending, 'proposal': staged}
         return None
 
     def _stage_proposal(self, operations, clarification, intent, response):
@@ -160,13 +217,22 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
         trial = deepcopy(self)
         trial.apply(operations)
         pending = self._scope(clarification, trial.values)
+        group = ([{'item_id': pending['item_ids'][0], 'slot': pending['slot']}] + pending['linked_addresses']
+                 if pending.get('linked_addresses') else None)
         for operation in operations:
             target = operation['item_id']
             scope_matches = target in pending['item_ids'] if pending['item_ids'] else target is None
             if scope_matches and operation['slot'] == pending['slot']:
                 raise ValueError('A proposal cannot decide the unresolved row or root field.')
-        return {'ops': deepcopy(operations), 'state': deepcopy(trial.values),
-                'next_item_id': trial.next_item_id, 'base_version': self.version}
+            if group and any(target == address['item_id'] and operation['slot'] == address['slot']
+                             for address in group):
+                raise ValueError('A proposal cannot decide a linked address.')
+        proposal = {'ops': deepcopy(operations), 'state': deepcopy(trial.values),
+                    'next_item_id': trial.next_item_id, 'base_version': self.version}
+        if group:
+            proposal.update(linked_addresses=deepcopy(group), answered_addresses=[],
+                            remaining_addresses=deepcopy(group))
+        return proposal
 
     def _begin_ambiguity(self):
         self.ambiguity_pending = self.awaiting_correction = True
@@ -212,7 +278,7 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
             requested = (question['slot'], question['item_ids'][0] if len(question['item_ids']) == 1 else None)
         else:
             requested = missing or (None, None)
-        return {'state': deepcopy(self.values), 'collection': self.collection,
+        return {'state': deepcopy(self.values), 'collection': self.collection, 'version': self.version,
             'next_item_id': self.next_item_id, 'requested_slot': requested[0], 'requested_item_id': requested[1],
             'awaiting_correction': self.awaiting_correction,
             'awaiting_item_clarification': self.ambiguity_pending,
