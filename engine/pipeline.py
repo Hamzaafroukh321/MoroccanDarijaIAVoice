@@ -110,7 +110,7 @@ from engine.endpointing import EndpointDetector
 from engine.normalize import normalize
 from engine.overlap import assess
 from engine.responder import AudioBankError
-from engine.router import RouterError, RouterOutputError
+from engine.router import RouterError, RouterOutputError, RouterConfigurationError
 from engine.state import Action, TaskState
 from engine.stt import STTError
 
@@ -452,7 +452,9 @@ class VoiceSession:
             except (STTError,RouterError,ValueError) as exc:
                 if record is not None:
                     record['processing_error']={'type':type(exc).__name__,'message':str(exc)}
-                if self.config.get('demo') and isinstance(exc, (STTError, RouterError)) and not isinstance(exc, RouterOutputError):
+                if (isinstance(exc, RouterConfigurationError) or
+                        (self.config.get('demo') and isinstance(exc, (STTError, RouterError))
+                         and not isinstance(exc, RouterOutputError))):
                     self.status='error'
                     await self.emit({'type':'error','message':str(exc)})
                     self.done.set()

@@ -186,6 +186,11 @@ confirmation words, punctuation, longer replies and unsupported types continue
 through normal routing. It performs no fuzzy matching or companion inference.
 Session evidence labels it `configured_exact_answer` and records local routing
 separately from Groq calls. Exact text matching does not establish ASR accuracy.
+The same lookup handles active flat `coupled_slots` questions using their current
+root field, coverage and version. For clinic, an existing exact doctor alias can
+advance to the linked time question while the choice stays pending. Date and time
+answers continue through normal routing, including apparently simple numeric
+answers; this lookup never guesses their interpretation.
 
 ## Verify the new task
 

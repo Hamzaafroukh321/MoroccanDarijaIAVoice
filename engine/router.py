@@ -24,6 +24,26 @@ class RouterError(RuntimeError):
     pass
 
 
+class RouterConfigurationError(RouterError):
+    """The provider rejected the request schema before interpreting the turn."""
+
+
+def is_schema_configuration_error(response):
+    """Recognize the observed setup rejection without retaining provider text."""
+    if not isinstance(response, httpx.Response) or response.status_code != 400:
+        return False
+    try:
+        if len(response.content) > 8192:
+            return False
+        payload = response.json()
+        error = payload.get('error') if isinstance(payload, dict) else None
+        return (isinstance(error, dict) and error.get('type') == 'invalid_request_error'
+            and error.get('param') == 'response_format' and error.get('code') is None
+            and 'failed_generation' not in error and 'failed_generation' not in payload)
+    except (ValueError, httpx.ResponseNotRead):
+        return False
+
+
 class RouterOutputError(RouterError):
     """All attempts reached the model but its output failed local validation."""
 
@@ -170,6 +190,7 @@ class TaskClarification(BaseModel):
 
 
 class ScopedTaskRouterResponse(RouterResponse):
+    _routing_source: str = PrivateAttr(default='groq')
     intent: Literal['task', 'greeting', 'help', 'out_of_scope', 'ambiguous', 'unclear']
     clarification: TaskClarification | None
     resolves_clarification: int | None
@@ -400,8 +421,7 @@ def build_messages(config, state, transcript):
             context['committed_state']=deepcopy(context['state'])
             context['state']=visible_proposal_state(proposal,
                 collection=context.get('collection') if configured_collection_demo(config) else None)
-            if configured_collection_demo(config):
-                context['pending_proposal']['state']=deepcopy(context['state'])
+            context['pending_proposal']['state']=deepcopy(context['state'])
             if 'next_item_id' in proposal: context['next_item_id']=proposal['next_item_id']
             pending_scope=context.get('pending_clarification') or {}
             context['requested_slot']=pending_scope.get('slot')
@@ -437,7 +457,7 @@ class Router:
         if self.owns_client: await self.client.aclose()
 
     async def route(self, transcript, state):
-        if configured_collection_demo(self.config):
+        if configured_collection_demo(self.config) or flat_scoped_demo(self.config):
             from engine.scoped_answers import exact_linked_answer
             local_started = time.monotonic()
             operation = exact_linked_answer(self.config, state, transcript)
@@ -446,9 +466,14 @@ class Router:
                     unclear=False, is_affirmation=False, is_negation=False, intent='task',
                     clarification=None, resolves_clarification=state['pending_clarification']['id'],
                     proposed_ops=[], discard_clarification=None, discard_request=None)), self.config)
-                from engine.collection_task import ConfiguredCollectionState
+                if configured_collection_demo(self.config):
+                    from engine.collection_task import ConfiguredCollectionState
+                    matches = ConfiguredCollectionState.resolution_matches
+                else:
+                    from engine.scoped_task import ScopedTaskState
+                    matches = ScopedTaskState.resolution_matches
                 validate_resolution_identity(state['pending_clarification'], [operation],
-                    parsed.resolves_clarification, ConfiguredCollectionState.resolution_matches)
+                    parsed.resolves_clarification, matches)
                 parsed._routing_source = 'configured_exact_answer'
                 self.local_calls.append({'ok': True, 'source': parsed._routing_source,
                     'elapsed_ms': (time.monotonic() - local_started) * 1000})
@@ -516,6 +541,12 @@ class Router:
                     'http_status':getattr(getattr(exc,'response',None),'status_code',None),'elapsed_ms':(time.monotonic()-started)*1000})
                 if output_received and validation_stage is not None:
                     self.calls[-1]['validation_stage'] = validation_stage
+                if is_schema_configuration_error(getattr(exc, 'response', None)):
+                    self.calls[-1].update(failure_kind='configuration',
+                        validation_stage='response_format', retryable=False)
+                    raise RouterConfigurationError(
+                        'The task router has a configuration problem. Check server setup before '
+                        'starting again. Your saved details were not changed.') from None
                 if isinstance(exc, TemporalGroundingError):
                     self.calls[-1]['validation_rule'] = 'current_utterance_time'
                     messages.append({'role': 'system', 'content':

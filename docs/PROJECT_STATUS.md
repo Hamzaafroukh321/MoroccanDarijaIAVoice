@@ -26,7 +26,11 @@ the pizza demo does not place orders.
 - Same-row linked choices hold all declared fields in a draft until explicitly
   answered, with fresh question IDs and masked unresolved preview fields. Exact
   configured enum/integer answers can resolve the current linked question locally;
-  evidence separates these lookups from Groq requests.
+  the same matcher handles flat clinic coupled questions. Evidence separates
+  these lookups from Groq requests; it does not guess dates, times or ASR aliases.
+- Recognized router schema-configuration errors stop immediately with a static
+  setup message instead of retrying an identical request or asking for repeated
+  speech. Other error shapes keep the existing retry behavior.
 - Conditional clarification schema: ambiguous values require an affected field.
   Dependent alternatives are not silently selected or committed.
 - Explicit **Continue saved details** after an eligible provider failure. Recovery
@@ -38,7 +42,7 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1195 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1243 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
@@ -56,6 +60,11 @@ saved successful opening with the local exact-answer path now advances from
 equipment to quantity and reaches the correct unconfirmed readback with zero new
 API calls. This fixes that scoped text flow; broader model interpretation and
 native spoken accuracy remain unproven.
+The same saved-opening replay now advances a clinic doctor choice to its linked
+time question without an API request. A separate two-call actual MoulSot check
+on a frozen short synthetic doctor-name clip failed: vocabulary context inserted
+both doctor options instead of producing one exact alias. Context remains off;
+this result does not establish a native speech improvement.
 The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.

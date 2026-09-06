@@ -1,4 +1,4 @@
-"""Exact answers to one currently requested linked collection field.
+"""Exact answers to one currently requested linked flat or collection field.
 
 This is a deliberately narrow configuration lookup, not a language parser or
 ASR repair. Only whole canonical enum values/aliases and ASCII integer tokens
@@ -81,6 +81,58 @@ def _current_field(config, state):
     return row_id, field
 
 
+def _flat_current_field(config, state):
+    settings = config['demo']
+    schema = settings.get('transaction_schema')
+    definitions = config.get('slots')
+    if (not isinstance(schema, dict) or
+            set(schema) != {'collection', 'root_slots', 'item_slots', 'exclusive_values'} or
+            schema['collection'] is not None or schema['item_slots'] != [] or
+            not isinstance(schema['exclusive_values'], dict) or
+            not isinstance(definitions, list) or not definitions):
+        raise ValueError('Expected a configured flat transaction schema.')
+    selected = []
+    for definition in definitions:
+        if not isinstance(definition, dict):
+            raise ValueError('Expected configured field definitions.')
+        name = definition.get('id')
+        if not isinstance(name, str) or not name or name != name.strip() or name in selected:
+            raise ValueError('Expected unique configured field names.')
+        selected.append(name)
+    fields = schema['root_slots']
+    if (not isinstance(fields, list) or any(not isinstance(field, str) for field in fields) or
+            len(fields) != len(selected) or set(fields) != set(selected)):
+        raise ValueError('All configured fields must be distinct roots.')
+    if not isinstance(state, dict) or state.get('collection') is not None or state.get('requested_item_id') is not None:
+        raise ValueError('Expected root-field context.')
+    question, proposal = state.get('pending_clarification'), state.get('pending_proposal')
+    if (not isinstance(question, dict) or not isinstance(proposal, dict) or
+            question.get('kind') != 'ambiguous_value' or not _positive_integer(question.get('id')) or
+            question.get('item_ids') != []):
+        raise ValueError('Expected an identified root-field ambiguous question.')
+    field = question.get('slot')
+    if not isinstance(field, str) or field not in fields or state.get('requested_slot') != field:
+        raise ValueError('The requested root must match the pending question.')
+    version, base = state.get('version'), proposal.get('base_version')
+    if type(version) is not int or type(base) is not int or version < 0 or base != version:
+        raise ValueError('The pending proposal must be current.')
+    full, answered, remaining, companions = (proposal.get('coupled_slots'), proposal.get('answered_slots'),
+        proposal.get('remaining_slots'), question.get('coupled_slots'))
+    for group in (full, answered, remaining, companions):
+        if (not isinstance(group, list) or
+                any(not isinstance(name, str) or name not in fields for name in group) or
+                len(set(group)) != len(group)):
+            raise ValueError('Expected distinct configured coupled fields.')
+    if (not 2 <= len(full) <= min(40, len(fields)) or not remaining or remaining[0] != field or
+            set(answered) & set(remaining) or set(answered) | set(remaining) != set(full) or
+            answered != [name for name in full if name in answered] or
+            remaining != [name for name in full if name in remaining] or
+            companions != [name for name in full if name != field] or
+            not isinstance(proposal.get('state'), dict)):
+        raise ValueError('The pending coupled group must have consistent explicit coverage.')
+    return field
+
+
 def _enum_answer(slot, token):
     values, aliases = slot.get('values'), slot.get('aliases', {})
     if (not isinstance(values, list) or not values or
@@ -97,7 +149,7 @@ def _enum_answer(slot, token):
 
 
 def exact_linked_answer(config, state, transcript):
-    """Return one normalized four-key set operation, or abstain without mutation."""
+    """Return one set operation (three flat/four row keys), or safely abstain."""
     if not isinstance(transcript, str):
         return None
     token = transcript.strip().casefold()
@@ -105,7 +157,15 @@ def exact_linked_answer(config, state, transcript):
     if not token or token in reserved | {'yes', 'no'} or any(mark in token for mark in '?؟？'):
         return None
     try:
-        row_id, field = _current_field(config, state)
+        if not isinstance(config, dict) or not isinstance(config.get('demo'), dict):
+            return None
+        kind = config['demo'].get('state_kind')
+        if kind == 'configured_collection_scoped':
+            row_id, field = _current_field(config, state)
+        elif kind == 'flat_scoped':
+            field = _flat_current_field(config, state)
+        else:
+            return None
         slots = {slot['id']: slot for slot in config['slots']}
         definition = slots[field]
         if definition.get('type') == 'enum':
@@ -116,7 +176,9 @@ def exact_linked_answer(config, state, transcript):
             value = int(token)
         else:
             return None
-        operation = {'op': 'set', 'item_id': row_id, 'slot': field, 'value': value}
+        operation = {'op': 'set', 'slot': field, 'value': value}
+        if kind == 'configured_collection_scoped':
+            operation['item_id'] = row_id
         validate_operation(operation, slots, config)
         operation['value'] = slot_value(value, definition, config)
         return operation

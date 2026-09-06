@@ -77,11 +77,27 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    collection_linked_implementation_20260906.md. Full suite1195passed/1skip.
    Total this continuation:6 Groq calls,0 ASR/TTS. Do not rerun these green cases.
 
-   **Next bounded step:** assess sharing the exact-answer contract with active
-   flat clinic linked questions, using existing configured enum aliases only.
-   First verify authority/version and pending-coverage parity; do not guess
-   dates/times, add unreviewed ASR aliases, infer companion values or count local
-   lookup as a Groq/ASR success. Use saved pending fixtures before provider work.
+   Completed: the same exact-answer matcher now handles active flat coupled
+   questions, including clinic, with root scope/version/coverage validation.
+   Saved real opening replay + existing alias 'الطبيب باء' stages doctorB and
+   asks time under fresh ID2, leaving committed doctorA/time10 unchanged, with
+   zero HTTP/quota calls. The saved ASR text 'الطبيب باع' and date/time inputs
+   abstain. No new aliases. See bench/results/clinic_local_followup_20260906.json.
+   Both router-visible preview copies now hide remaining flat fields.
+   Completed: recognized HTTP400 schema-configuration errors now stop without
+   retrying an identical request or asking for repeated speech. The bounded
+   classifier retains no provider body; other error shapes keep their retry path.
+   Final full suite:1243passed/1native-review skip.
+
+   A frozen two-call short-clip MoulSot experiment failed: baseline returned
+   الطبيب باع, while symmetric context inserted both doctor options. Context
+   remains disabled. See bench/results/short_answer_context_20260906.json.
+   Two local ASR calls, zero Groq/TTS calls for this experiment.
+
+   **Next bounded step:** review primary documentation and saved evidence for
+   very short MoulSot utterances and context copying before proposing another
+   experiment. Do not repeat prompt searches, invent aliases or claim native
+   accuracy from synthetic inputs.
    Cross-row/root links remain unsupported. Do not silently reuse flat
    coupled_slots or alter successful pizza/clinic speech scripts.
    Native speech quality still needs owner-supplied reviewed cases/recordings.
@@ -120,10 +136,10 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-06T01:25:36 Casablanca,
-  supervisorPID12380 (launcher wrapper37148).
+  --start --hosted-fallback --device cpu at 2026-09-06T01:56:38 Casablanca,
+  supervisorPID2960 (launcher wrapper29304).
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/collection_refresh_20260906.json records the no-inference checks.
+  bench/results/push_refresh_20260906.json records the no-inference checks.
   The configured collection, linked-address and exact-answer changes are loaded;
   no new shipped voice domain was added. Before refresh there were no established
   engine connections; STOP closed owned services and freed all three ports.
@@ -175,8 +191,11 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 - The user explicitly requested the latest GitHub snapshot; it was pushed to
   Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
   That published checkpoint passed1071tests/1native-review skip. The refreshed
-  local server includes subsequent fixes verified by1195tests/1skip. These newer
-  changes have not been published. An earlier clean source-only export
+  local server includes subsequent fixes verified by1243tests/1skip. The user
+  has now explicitly authorized publishing the current snapshot, including
+  the collection and flat-answer fixes. Pre-push targeted checks:84passed;
+  no credential patterns, recordings or models in the source snapshot.
+  An earlier clean source-only export
   passed842/1skip after LF checksum correction. Later autonomous changes remain
   local unless separately authorized for publication; no automatic force pushes.
 

@@ -162,7 +162,7 @@ class ScopedTaskState(ScopedDialogue, TaskState):
 
     def router_context(self):
         requested = self.pending_clarification['slot'] if self.pending_clarification else self._missing()
-        return {'state': deepcopy(self.values), 'requested_slot': requested,
+        return {'state': deepcopy(self.values), 'version': self.version, 'requested_slot': requested,
                 'awaiting_correction': self.awaiting_correction,
                 'pending_clarification': deepcopy(self.pending_clarification),
                 'pending_proposal': deepcopy(self.pending_proposal)}

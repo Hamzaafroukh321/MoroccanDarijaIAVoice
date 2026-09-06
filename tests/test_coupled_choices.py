@@ -273,7 +273,7 @@ def test_pipeline_retains_original_until_final_commit_and_exact_new_playback_ack
                 first = voice.task.pending_clarification['id']
                 if reject_at == 'opening':
                     await reject_answer(field, field + '_b')
-                await speak(f'{field} B', response(ops=[op(field, field + '_b')], resolves_clarification=first))
+                await speak(f'I choose {field} B', response(ops=[op(field, field + '_b')], resolves_clarification=first))
                 await acknowledge()
                 assert voice.task.values == original
                 assert voice.pending_request == retained
