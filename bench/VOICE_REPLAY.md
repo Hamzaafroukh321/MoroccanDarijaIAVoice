@@ -117,3 +117,30 @@ and keep the harness's simulated ACK separate from real device playback.
 Historical reports without these phases remain incomplete evidence. Capture the
 new data on the next otherwise-needed uncached reply; do not repeatedly synthesize
 an unchanged prompt just to search for a faster result.
+
+## Interpret ASR runtime evidence
+
+Each `stt_calls` entry includes `runtime_provenance`. Its `configured` fields
+identify that attempt's provider and transport. Only the exact owned local
+endpoint can attach a `launch_snapshot`: the supervisor verified the pinned
+decoder/projector hashes and extracted runtime at startup, then checked the
+owned model's reported identity before starting the bridge and engine.
+
+The snapshot contains a fresh run ID, UTC verification time, model/conversion
+identity, runtime release and hashes. `selected_device` describes the launcher's
+CPU/CUDA policy; `actual_device` is null because tensor placement is not measured.
+There is no large-file hashing during transcription.
+
+`response_binding=matched` means the response's bridge acknowledgment matches
+the expected launch snapshot. It does not attest to runtime memory, current
+file contents or recognition accuracy. A matched response can still have
+`ok=false` if its transcription or context is invalid; inspect both fields.
+HTTP failures and attempts without a response cannot have matched binding.
+Missing, malformed or mismatching optional metadata does not change whether a
+valid transcript succeeds. `bridge_reported` is a separate bounded label, not
+independent verification.
+
+Standalone bridges without launch metadata remain unverified. Hosted, custom
+and redirected endpoints cannot claim local launch evidence, and a fallback
+attempt gets its own provider record. Old reports lacking these fields cannot
+be retroactively assigned verified runtime details from a newer run.

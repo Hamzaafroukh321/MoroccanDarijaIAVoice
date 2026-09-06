@@ -568,6 +568,20 @@ class Router:
                 if isinstance(exc, CollectionValidationError):
                     self.calls[-1]['validation_rules'] = list(exc.validation_rules)
                     self.calls[-1]['validation_rules_truncated'] = exc.rules_truncated
+                    if ('collection_link_duplicate' in exc.validation_rules and
+                            attempt < self.settings['retries']):
+                        # Rebuild under the same contract on the existing retry;
+                        # never silently deduplicate or accept the rejected draft.
+                        messages.append({'role': 'system', 'content':
+                            'The previous candidate repeated a clarification address. '
+                            'For ambiguous_value, the primary address is the pair of '
+                            'item_ids[0] (or null for a root field) and slot. '
+                            'linked_addresses must contain only the OTHER dependent addresses, '
+                            'each exact {item_id, slot} pair once, never the primary pair. '
+                            'The same slot on different row IDs is distinct: preserve both when dependent. '
+                            'Rebuild the complete response from the original utterance and current context. '
+                            'Keep every dependent field, ops=[], and no affirmation; do not select '
+                            'an alternative, infer companion values, or drop the unresolved question.'})
                 elif isinstance(exc,ValidationError):
                     self.calls[-1]['validation_errors']=[{'location':list(error['loc']),'type':error['type'],'message':error['msg']}
                         for error in exc.errors(include_input=False,include_url=False)]

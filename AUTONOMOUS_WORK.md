@@ -30,14 +30,23 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    error occurred on full direct input. Do not attribute it to endpointing or
    tune VAD from nonzero samples alone. See
    bench/results/short_answer_endpoint_audit_20260906.json.
+   A private blind listening pack is ready at
+   bench/results/listening_review_20260906/index.html: three unchanged synthetic
+   WAVs, notes before explicit source reveal, local JSON export. Ten browser
+   checks passed; no human review has occurred and fields remain blank.
 
-3. Next bounded evidence step: design a trustworthy ASR runtime snapshot for
-   future session reports. Existing successful reports lack exact build/device
-   provenance; do not pool their model timings. Reuse pinned preflight/bridge
-   facts without rehashing large models per turn or trusting arbitrary remote
-   metadata. Distinguish configured, bridge-reported and verified facts; unknown
-   device/build stays unknown. Start with source inspection and offline fixtures,
-   no new speech calls, downloads, dependencies or provider switching.
+3. Review the new human-speech comparison, not another run of its audio:
+   bench/results/casablanca_smoke_20260906/README.md. Three duration-selected
+   Casablanca clips ran once locally and once hosted (sixMoulSot calls total).
+   Both deployments returned the same shortest text and differed substantially
+   from the longest published reference. No clearBF16gain; do notswitchproviders
+   or tune from raw edit distance. The offline conversion audit found no gross
+   error: negligible downmix/resampling loss, zero rail clipping, sub-sample
+   duration difference. Review preserved speech differences before proposing a
+   fix. A future justified change needs fresh
+   validation samples, not these same exposed references. Source research:
+   bench/results/human_speech_sources_20260906.md. These are external references,
+   not owner-reviewed task cases, kitchen accuracy or held-out proof.
 
 4. On the next otherwise-needed cold XTTS reply, inspect the new per-producer
    phases. Historical evidence shows8.315s synthesis for a time-only correction,
@@ -46,19 +55,21 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    before changing the whole-summary default. See
    bench/results/voice_latency_audit_20260906.md and bench/VOICE_REPLAY.md.
 
-5. On the next newly justified collection rejection, use static validation_rules
-   to identify the failed contract. The old cross-address model output is lost;
-   no root cause or fix can be claimed retrospectively. Do not replay it until
-   green, invent its candidate or change the prompt from a guessed cause.
+5. One instrumentation-only replay of the frozen cross-address request failed
+   with collection_link_duplicate (1.414s, one Groq call, zero retries/ASR/TTS).
+   Original failure remains unknown; the new response body was not retained.
+   A static reminder on the existing retry passed20offline cases. Keep
+   validation and request budgets unchanged. No third live replay: inspect the
+   reminder on a new, otherwise-justified interaction, not repeated success hunting.
 
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-06T02:41:07 Casablanca,
-  supervisorPID16688 (launcher wrapper21828).
+  --start --hosted-fallback --device cpu at 2026-09-06T03:11:26 Casablanca,
+  supervisorPID16072 (launcher wrapper35284).
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/phase_refresh_20260906.json records the no-inference checks.
-  Static collection-rule diagnostics and per-render/producer TTS phase timing are loaded;
+  bench/results/provenance_refresh_20260906.json records the no-inference readiness checks.
+  ASR launch provenance, duplicate-address retry, collection diagnostics and TTS phases are loaded;
   no new shipped voice domain was added. Before refresh there were no established
   engine connections; STOP closed owned services and freed all three ports.
   Context is absent from both shipped task configs. Status-file sharing failures
@@ -110,14 +121,33 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
   That published checkpoint passed1071tests/1native-review skip. The refreshed
   local server includes subsequent fixes verified by1243tests/1skip. The user
-  explicitly authorized the snapshot now published atc5eaa9a, verified against
-  remote main. It includes collection and flat-answer fixes. Pre-push checks:84passed;
-  no credential patterns, recordings or models in the source snapshot.
+  explicitly authorized c5eaa9a and then the latest snapshot35fc868, verified
+  against remote main on September6. It includes cross-address choices, safe
+  collection diagnostics and TTS phases, with1325tests/1native-review skip.
+  No credential patterns, recordings or models in the source snapshot.
   An earlier clean source-only export
   passed842/1skip after LF checksum correction. Later autonomous changes remain
   local unless separately authorized for publication; no automatic force pushes.
 
 ## Completed steps and prior evidence (historical)
+
+- 2026-09-06: private listening pack completed with10browser checks. Separate
+  duration-selected human speech diagnostic prepared from the ungated Casablanca
+  corpus (author-attributed transcriptions, no owner/native task review claim).
+  Three local and3hostedMoulSot calls completed on the same10.595s input total,
+  no retries/Whisper/router/TTS. Local1.79–4.20s; hosted1.70–4.40s. Both produced
+  identical shortest text; neither closely matched longestreference. No provider
+  switch, context or tuning follows. All3localresponses matched verifiedlaunch
+  metadata; hostedcalls correctlycarrynot_applicable instead of localclaims.
+  comparison_audit.json verifies identical inputs/references and no gross
+  channel cancellation, clipping or conversion-duration error. No semantic
+  accuracy verdict follows from waveform statistics or literal word edits.
+- 2026-09-06: launch ASR provenance implemented; configured provider, verified
+  asset/runtime hashes, bridge response binding and selected device policy are
+  separate. actual_device stays null, no per-turn model hashing. Matching adapter
+  metadata can coexist with an invalid transcript; inspect call.ok separately.
+  Fifty-two new offline cases plus20duplicate-address retry cases; full suite
+  1397passed/1native-review skip,14known warnings,57.86seconds.
 
 - 2026-09-06: static collection response provenance implemented with<=8 sorted
   allowlisted rules, no input/locations/messages in diagnostics, unchanged
@@ -142,11 +172,9 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    output was not captured, so the exact violated rule is unknown. Do not call
    this a provider JSONSchema rejection or retry it until green.
 
-4. Next concrete step: make local collection response-validation evidence identify
-   its safe static rule (or bounded synthetic diagnostic envelope), using offline
-   fixtures first. The current response_schema stage cannot distinguish shape
-   from coherence failures. Do not guess the lost model output or alter the prompt
-   without evidence. No new ASR experiment is justified until native review.
+4. Completed: local collection response-validation evidence now identifies a safe
+   static rule. The bounded instrumented replay identified a duplicate linked
+   address; the earlier lost response still cannot be diagnosed retrospectively.
 
 5. Timing correction completed: router durations use perf_counter with explicit
    clock provenance. Windows monotonic had15.625ms resolution and reported0ms for

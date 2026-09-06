@@ -11,6 +11,9 @@ the pizza demo does not place orders.
   replies, interruption handling and resource cleanup.
 - Actual MoulSot recognition, using a hosted Space or the optional local bridge.
   Groq interprets structured task operations; it does not replace MoulSot with Whisper.
+- Local ASR reports separate launch-verified model/runtime hashes, selected device
+  policy and matching bridge acknowledgments. Hosted/custom endpoints cannot
+  inherit local verification. Actual device placement remains unknown.
 - Optional task-specific vocabulary for controlled local MoulSot demo experiments,
   with strict bounds and an exact forwarding acknowledgment. All shipped tasks
   leave it off; native benefit is unproven. Hosted and reviewed research paths
@@ -38,6 +41,9 @@ the pizza demo does not place orders.
 - Configured collection rejections identify bounded static validation rules,
   separating shape/coherence from field, value and address failures without
   including rejected values or arbitrary property names in diagnostics.
+- A duplicate linked address receives a specific reminder on the existing router
+  retry. Rejected drafts remain rejected; this does not increase the call budget
+  or infer the user's choice.
 - Router duration telemetry uses a high-resolution performance clock with explicit
   provenance, preserving submillisecond local lookup measurements on Windows.
 - Conditional clarification schema: ambiguous values require an affected field.
@@ -51,7 +57,7 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1325 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1397 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
@@ -62,10 +68,26 @@ Thirty-four new offline cases cover root/row scopes, held partial answers, atomi
 completion, cancellation and committed-only recovery. Fifteen additional mocked
 browser checks verify root/row preview separation and desktop/mobile display.
 These checks do not establish that a model always identifies the dependency.
+Three fixed human-recorded segments from the official
+[Casablanca Morocco validation dataset](https://huggingface.co/datasets/UBC-NLP/Casablanca)
+were run once each through local MoulSot and the existing hosted MoulSot Space.
+The shortest output was identical across deployments; both differed substantially
+from the longest published reference. Six calls completed with no retries,
+Whisper, routing or synthesis. Local response times were 1.79–4.20 seconds;
+hosted times were 1.70–4.40 seconds. This tiny duration-selected comparison does
+not isolate quantization effects or establish native task accuracy. It offers
+no clear reason to switch the working local demo. References remain externally
+attributed and unchanged; public speech is separate from owner-reviewed cases.
 One frozen English live opening for the extension failed local response validation
-and left the saved state unchanged. The diagnostic did not capture the raw model
-output, so its specific failed rule is unresolved; no repeat attempt was made.
-Future collection parse failures now expose bounded static rule codes. Thirty-two
+and left the saved state unchanged. The original raw response was not captured.
+One later instrumentation-only replay, with the same request and schema and no
+retry, failed with `collection_link_duplicate` in 1.414 seconds. This identifies
+the new rejection, not the lost original response. A static retry reminder now
+explains address uniqueness; no further live replay or accuracy claim followed.
+Twenty offline cases verify the reminder, existing quotas, both duplicate forms,
+distinct rows with the same field, and state preservation. Fifty-two additional
+offline cases cover launch provenance, malformed/remote claims and report isolation.
+Collection parse failures expose bounded static rule codes. Thirty-two
 new offline tests verify classification and exclusion of rejected data from
 diagnostics. This instrumentation does not recover or fix that historical response.
 A historical successful clinic run spent 8.315 seconds rendering a new whole

@@ -4,6 +4,7 @@ All children live in one Windows job. .env is never modified. An optional
 one-way hosted recovery starts only the normal engine after a local failure.
 """
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ import re
 import socket
 import sys
 import time
+import uuid
 import zipfile
 
 import httpx
@@ -19,6 +21,10 @@ import httpx
 from prepare import ASSETS, DEST, ROOT, digest
 from probe import available_ram_mib, free_gpu_mib
 from bridge import MAX_OUTPUT_TOKENS
+from engine.asr_provenance import (
+    ENV_VAR as RUNTIME_SNAPSHOT_ENV, MODEL_VARIANT, SOURCE_MODEL,
+    VERIFICATION, validate_snapshot,
+)
 
 
 PORTS = (8000, 8011, 8012)
@@ -115,7 +121,36 @@ def preflight(verify=True, device='cuda'):
     runtime = json.loads((ROOT / 'configs/pizza.json').read_text(encoding='utf-8'))['runtime']
     if runtime.get('host') != '127.0.0.1' or runtime.get('port') != 8000:
         issues.append('The engine runner must bind 127.0.0.1:8000 for this launcher.')
-    return {'ready': not issues, 'issues': issues, 'memory': memory, 'occupied_ports': ports, 'selected_device': device}
+    result = {'ready': not issues, 'issues': issues, 'memory': memory, 'occupied_ports': ports, 'selected_device': device}
+    if verify is True and not issues:
+        result.update(verification=VERIFICATION,
+                      verified_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))
+    return result
+
+
+def launch_snapshot(check):
+    """Use this launch's completed verification, never an inherited claim.
+
+    Called only after the owned runtime has passed its model identity check.
+    Selected device records launcher policy, not measured tensor placement.
+    """
+    if check.get('ready') is not True or check.get('verification') != VERIFICATION:
+        return None
+    assets = {name: (sha, base) for name, _, sha, base in ASSETS}
+    decoder, conversion = assets['moulsot.v0.3.Q4_K_M.gguf']
+    projector, _ = assets['moulsot.v0.3.mmproj-Q8_0.gguf']
+    runtime, release = assets['llama-b10809-bin-win-cuda-12.4-x64.zip']
+    cuda, _ = assets['cudart-llama-bin-win-cuda-12.4-x64.zip']
+    return validate_snapshot({
+        'schema_version': 1, 'run_id': uuid.uuid4().hex,
+        'verified_at': check.get('verified_at'), 'source_model': SOURCE_MODEL,
+        'model_variant': MODEL_VARIANT, 'verification': VERIFICATION,
+        'selected_device': check.get('selected_device'),
+        'conversion_revision': conversion.rstrip('/').rsplit('/', 1)[-1],
+        'runtime_release': release.rstrip('/').rsplit('/', 1)[-1],
+        'decoder_sha256': decoder, 'projector_sha256': projector,
+        'runtime_archive_sha256': runtime, 'cuda_archive_sha256': cuda,
+    })
 
 
 def main(args):
@@ -131,6 +166,7 @@ def main(args):
              'preflight': check, 'env_modified': False, 'recovered_once': False}
     started = time.perf_counter()
     base_env = os.environ.copy()
+    base_env.pop(RUNTIME_SNAPSHOT_ENV, None)
     runtime_env = base_env.copy()
     runtime_env['PATH'] = os.pathsep.join(sorted({str(p.parent) for p in (DEST / 'runtime').rglob('*.dll')})) + os.pathsep + base_env.get('PATH', '')
     engine_env = base_env.copy()
@@ -213,7 +249,14 @@ def main(args):
             models = client.get('http://127.0.0.1:8011/v1/models').json().get('data', [])
             if len(models) != 1 or models[0]['id'].replace('\\', '/').rsplit('/', 1)[-1] != 'moulsot.v0.3.Q4_K_M.gguf':
                 raise RuntimeError('Unexpected local model identity')
-            bridge_process = spawn('bridge', bridge_command, base_env)
+            bridge_env = base_env.copy()
+            snapshot = launch_snapshot(check)
+            if snapshot is not None:
+                serialized = json.dumps(snapshot, sort_keys=True, separators=(',', ':'))
+                bridge_env[RUNTIME_SNAPSHOT_ENV] = serialized
+                engine_env[RUNTIME_SNAPSHOT_ENV] = serialized
+                state['local_launch_snapshot'] = snapshot
+            bridge_process = spawn('bridge', bridge_command, bridge_env)
             wait_ready('http://127.0.0.1:8012/health', bridge_process, 20)
             engine_process = spawn('engine', engine_command, engine_env)
             check_demo(wait_ready('http://127.0.0.1:8000/?domain=pizza&mode=demo', engine_process, 30))
@@ -249,6 +292,7 @@ def main(args):
                     job = WindowsJob()
                     state.update(mode='hosted', status='recovering', recovered_once=True)
                     hosted_env = base_env.copy()
+                    hosted_env.pop(RUNTIME_SNAPSHOT_ENV, None)
                     hosted_env['STT_PRIMARY'] = 'moulsot'
                     engine_process = spawn('hosted_engine', engine_command, hosted_env)
                     check_demo(wait_ready('http://127.0.0.1:8000/?domain=pizza&mode=demo', engine_process, 30))

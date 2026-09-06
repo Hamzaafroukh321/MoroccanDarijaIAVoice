@@ -18,6 +18,8 @@ import wave
 import httpx
 
 from engine.moulsot_context import configured_context, context_sha256, validate_context_target
+from engine.asr_provenance import (ENV_VAR as RUNTIME_SNAPSHOT_ENV, call_provenance,
+    decode_snapshot, exact_local_endpoint, record_response_provenance)
 
 
 class STTError(RuntimeError):
@@ -186,6 +188,7 @@ class SpeechToText:
         self.primary = primary or os.getenv('STT_PRIMARY', 'moulsot')
         if self.primary not in {'moulsot','groq'}: raise STTError('STT_PRIMARY must be moulsot or groq.')
         self.endpoint = endpoint if endpoint is not None else os.getenv('MOULSOT_ENDPOINT', '')
+        self._runtime_snapshot, self._runtime_snapshot_status = decode_snapshot(os.getenv(RUNTIME_SNAPSHOT_ENV))
         try:
             self.moulsot_context = configured_context(self.settings)
         except ValueError:
@@ -226,6 +229,8 @@ class SpeechToText:
                       'pcm_bytes': len(pcm), 'audio_duration_ms': len(pcm) * 1000 /
                       (self.runtime['sample_rate_hz'] * self.runtime['sample_width_bytes'] * self.runtime['channels']),
                       'phases_ms': {}}
+            record['runtime_provenance'] = call_provenance(self._runtime_snapshot, self._runtime_snapshot_status,
+                provider=provider, protocol=self.settings['moulsot_protocol'], endpoint=self.endpoint)
             if self.moulsot_context:
                 record['moulsot_context'] = {'experimental': True,
                     'terms': deepcopy(self.settings['moulsot_context']['terms']),
@@ -267,6 +272,14 @@ class SpeechToText:
                                                   **request_options)
                 response.raise_for_status()
                 payload = response.json()
+            if timing is not None and 'runtime_provenance' in timing:
+                eligible = exact_local_endpoint(self.endpoint, self.settings['moulsot_protocol'])
+                try:
+                    eligible = eligible and not response.history and str(response.url) == self.endpoint
+                except RuntimeError:
+                    eligible = False
+                record_response_provenance(timing['runtime_provenance'], self._runtime_snapshot, payload,
+                    eligible=eligible)
             if self.moulsot_context:
                 if not isinstance(payload, dict) or payload.get('context_sha256') != self.moulsot_context_hash:
                     raise STTError('Local MoulSot did not acknowledge the configured vocabulary.')

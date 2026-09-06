@@ -11,6 +11,7 @@ from email import policy
 from email.parser import BytesParser
 import io
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -21,6 +22,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from engine.moulsot_context import context_sha256, validate_context_text
+from engine.asr_provenance import ENV_VAR as RUNTIME_SNAPSHOT_ENV, decode_snapshot, runtime_ack
 
 
 UPSTREAM_URL = 'http://127.0.0.1:8011/v1/chat/completions'
@@ -147,6 +149,10 @@ def parse_transcription(payload):
 
 
 def create_app(client=None):
+    # Capture optional launch metadata once. Standalone or malformed metadata
+    # changes no inference behavior and creates no verified provenance claim.
+    snapshot, _ = decode_snapshot(os.getenv(RUNTIME_SNAPSHOT_ENV))
+    acknowledgment = runtime_ack(snapshot) if snapshot is not None else None
     @asynccontextmanager
     async def lifespan(application):
         if client is None:
@@ -197,6 +203,8 @@ def create_app(client=None):
                         raw.extend(chunk)
                 try:
                     result = parse_transcription(json.loads(raw))
+                    if acknowledgment is not None:
+                        result['runtime_snapshot'] = dict(acknowledgment)
                     if context:
                         # Acknowledge the exact forwarded context, not a claim
                         # that the model obeyed it or improved recognition.
