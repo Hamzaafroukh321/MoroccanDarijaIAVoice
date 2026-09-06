@@ -4,9 +4,10 @@ from copy import deepcopy
 import json
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, model_validator
 
 from engine.collection_schema import validate_collection_schema
+from engine.collection_validation import CollectionValidationError, collection_rule, validation_error_rules
 from engine.dialogue import validate_request_discard
 from engine.state import validate_operation
 
@@ -21,14 +22,14 @@ class CollectionOperation(BaseModel):
     @model_validator(mode='after')
     def addressed(self):
         if self.item_id is not None and self.item_id < 1:
-            raise ValueError('Row IDs must be positive integers.')
+            raise collection_rule('collection_operation_shape')
         if self.op in {'create', 'delete'}:
             if self.item_id is None or self.slot is not None or self.value is not None:
-                raise ValueError('Create and delete require a row ID and null field/value.')
+                raise collection_rule('collection_operation_shape')
         elif not self.slot:
-            raise ValueError('A field operation requires a configured field name.')
+            raise collection_rule('collection_operation_shape')
         if self.op == 'clear' and self.value is not None:
-            raise ValueError('Clear requires a null value.')
+            raise collection_rule('collection_operation_shape')
         return self
 
 
@@ -48,13 +49,13 @@ class CollectionClarification(BaseModel):
     @model_validator(mode='after')
     def scoped(self):
         if any(item_id < 1 for item_id in self.item_ids) or len(set(self.item_ids)) != len(self.item_ids):
-            raise ValueError('Question row IDs must be distinct positive integers.')
+            raise collection_rule('collection_question_shape')
         if self.kind in {'ambiguous_value', 'unsupported_value'} and not self.slot:
-            raise ValueError('A value question requires an explicit field.')
+            raise collection_rule('collection_question_shape')
         if self.kind == 'item_reference' and not self.item_ids:
-            raise ValueError('An item-reference question requires explicit candidate row IDs.')
+            raise collection_rule('collection_question_shape')
         if self.linked_addresses and self.kind != 'ambiguous_value':
-            raise ValueError('Only ambiguous values can link addresses.')
+            raise collection_rule('collection_question_shape')
         return self
 
 
@@ -75,72 +76,93 @@ class CollectionRouterResponse(BaseModel):
 
     @model_validator(mode='after')
     def coherent(self):
-        validate_request_discard(self.model_dump(), check_context=False)
+        try:
+            validate_request_discard(self.model_dump(), check_context=False)
+        except ValueError:
+            raise collection_rule('collection_request_discard') from None
         if self.is_affirmation and self.is_negation:
-            raise ValueError('A turn cannot affirm and negate simultaneously.')
+            raise collection_rule('collection_contradictory_flags')
         if (self.intent != 'task' or self.unclear) and (self.ops or self.is_affirmation or self.is_negation):
-            raise ValueError('An unresolved turn cannot modify or confirm the task.')
+            raise collection_rule('collection_unresolved_mutation')
         expected = {'out_of_scope': {'unsupported_value'},
                     'ambiguous': {'ambiguous_value', 'item_reference'},
                     'unclear': {'unintelligible'}}
         if self.intent in expected:
             if self.clarification is None or self.clarification.kind not in expected[self.intent]:
-                raise ValueError('Clarification must match the unresolved intent.')
+                raise collection_rule('collection_intent_question')
         elif self.clarification is not None:
-            raise ValueError('This intent cannot open a clarification.')
+            raise collection_rule('collection_intent_question')
         if self.resolves_clarification is not None:
             if (self.resolves_clarification < 1 or self.intent != 'task' or not self.ops or
                     self.clarification is not None or self.unclear):
-                raise ValueError('Resolution requires a current question ID and explicit task operations.')
+                raise collection_rule('collection_resolution_shape')
         if self.proposed_ops:
             if (self.intent not in {'ambiguous', 'out_of_scope'} or self.clarification is None or
                     self.clarification.kind not in {'ambiguous_value', 'unsupported_value'} or self.unclear or
                     self.ops or self.resolves_clarification is not None):
-                raise ValueError('Proposals require a matching initial unresolved value question.')
+                raise collection_rule('collection_proposal_shape')
         if self.discard_clarification is not None:
             if (self.discard_clarification < 1 or self.intent != 'task' or self.ops or self.proposed_ops or
                     self.is_affirmation or self.is_negation or self.unclear or self.clarification is not None or
                     self.resolves_clarification is not None):
-                raise ValueError('Discard requires a standalone task naming only its pending question ID.')
+                raise collection_rule('collection_discard_shape')
         return self
 
 
 def parse_collection_response(raw, config):
     """Validate response shape and configured addresses; never mutate a task."""
     schema = validate_collection_schema(config)
-    response = CollectionRouterResponse.model_validate_json(raw)
+    failure_rules = None
+    try:
+        response = CollectionRouterResponse.model_validate_json(raw)
+    except ValidationError as exc:
+        failure_rules = validation_error_rules(exc)
+    if failure_rules is not None:
+        # Raise outside the handler so the sanitized exception does not retain
+        # the original ValidationError (and its rejected input) as __context__.
+        raise CollectionValidationError(failure_rules) from None
     slots = {slot['id']: slot for slot in config['slots']}
     roots, items = set(schema['root_slots']), set(schema['item_slots'])
     for operation in [*response.ops, *response.proposed_ops]:
         if operation.op in {'create', 'delete'}:
             continue
         if operation.slot not in slots:
-            raise ValueError('Unknown configured collection field.')
+            raise CollectionValidationError('collection_operation_field')
         if (operation.slot in roots) != (operation.item_id is None):
-            raise ValueError('Root fields require null row IDs; row fields require positive row IDs.')
-        validate_operation(operation.model_dump(exclude={'item_id'}), slots, config)
+            raise CollectionValidationError('collection_operation_address')
+        invalid_value = False
+        try:
+            validate_operation(operation.model_dump(exclude={'item_id'}), slots, config)
+        except ValueError:
+            invalid_value = True
+        if invalid_value:
+            raise CollectionValidationError('collection_operation_value') from None
     question = response.clarification
     if question is not None:
         if question.slot is not None and question.slot not in slots:
-            raise ValueError('Unknown configured clarification field.')
+            raise CollectionValidationError('collection_question_field')
         if len(question.item_ids) > config['demo']['collection_max_items']:
-            raise ValueError('Clarification row IDs exceed the configured collection limit.')
+            raise CollectionValidationError('collection_question_rows_limit')
         if question.slot in roots and question.item_ids:
-            raise ValueError('Root questions cannot address rows.')
+            raise CollectionValidationError('collection_question_address')
         if question.kind == 'item_reference' and question.slot in roots:
-            raise ValueError('An item-reference question cannot target a root field.')
+            raise CollectionValidationError('collection_question_address')
         if question.kind != 'item_reference' and question.slot in items and len(question.item_ids) != 1:
-            raise ValueError('A row-field question requires exactly one row ID.')
+            raise CollectionValidationError('collection_question_address')
         linked = question.linked_addresses or []
         if linked:
             maximum = len(roots) + config['demo']['collection_max_items'] * len(items)
             if len(linked) > min(39, maximum - 1):
-                raise ValueError('Linked questions exceed the configured address limit.')
+                raise CollectionValidationError('collection_link_limit')
             seen = {(question.item_ids[0] if question.item_ids else None, question.slot)}
             for address in linked:
                 pair = (address.item_id, address.slot)
-                if (address.slot not in slots or (address.slot in roots) != (address.item_id is None) or pair in seen):
-                    raise ValueError('Linked companions require distinct valid root or row addresses excluding the primary.')
+                if address.slot not in slots:
+                    raise CollectionValidationError('collection_link_field')
+                if (address.slot in roots) != (address.item_id is None):
+                    raise CollectionValidationError('collection_link_address')
+                if pair in seen:
+                    raise CollectionValidationError('collection_link_duplicate')
                 seen.add(pair)
     return response
 

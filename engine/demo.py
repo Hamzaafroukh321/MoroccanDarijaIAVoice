@@ -6,6 +6,7 @@ Draft language and synthetic output are kept separate from the reviewed research
 import audioop
 import asyncio
 from copy import deepcopy
+from contextlib import contextmanager
 from datetime import date
 import hashlib
 import io
@@ -359,6 +360,40 @@ def read_speech_cache(path, runtime):
     return raw
 
 
+@contextmanager
+def _tts_phase(record, name):
+    """Time one owner-local phase, including failed/cancelled partial work.
+
+    The yielded stop function can end SSE waiting before its nested download
+    without changing the provider's stream/resource lifetime.
+    """
+    started = time.perf_counter()
+    stopped = False
+
+    def stop():
+        nonlocal stopped
+        if not stopped:
+            record['phases_ms'][name] = record['phases_ms'].get(name, 0.0) + (time.perf_counter()-started)*1000
+            stopped = True
+
+    try:
+        yield stop
+    except BaseException:
+        if not stopped:
+            record['failure_phase'] = name
+        raise
+    finally:
+        stop()
+
+
+def _tts_error_kind(error):
+    if isinstance(error, asyncio.CancelledError): return 'cancelled'
+    if isinstance(error, AudioBankError): return 'audio'
+    if isinstance(error, httpx.HTTPError): return 'http'
+    if isinstance(error, OSError): return 'local_io'
+    return 'unexpected'
+
+
 class DemoVoice:
     def __init__(self, config, root, *, client=None):
         self.config = config
@@ -371,7 +406,13 @@ class DemoVoice:
         self.xtts_reference = None
         self._xtts_references = {}
         self.calls = []
+        # Producers own remote timings once; renders only record their own wait
+        # and link by ID. A cancelled render need not cancel its shared producer.
+        self.producer_calls = []
+        self._next_render_id = 1
+        self._next_producer_id = 1
         self._inflight = {}
+        self._inflight_timings = {}
         self._closed = False
         self._close_task = None
 
@@ -392,9 +433,10 @@ class DemoVoice:
             if self.owns_client:
                 await self.client.aclose()
 
-    async def _darija_xtts(self, text, settings=None):
+    async def _darija_xtts(self, text, settings=None, *, timing=None):
         """Use the author's hosted checkpoint and default speaker through Gradio."""
         settings = settings or self.settings
+        timing = timing if timing is not None else {'phases_ms': {}}
         endpoint = settings['tts_url'].rstrip('/')
         url = httpx.URL(endpoint)
         if url.scheme != 'https' or not url.host.endswith('.hf.space'):
@@ -405,44 +447,50 @@ class DemoVoice:
             async with asyncio.timeout(settings['tts_timeout_ms']/1000):
                 reference = self._xtts_references.get(endpoint)
                 if reference is None:
-                    response = await self.client.get(endpoint+'/config', headers=headers)
-                    response.raise_for_status()
-                    components = response.json()['components']
-                    reference = next(c['props']['value'] for c in components
-                        if c['type']=='audio' and c['props'].get('label')=='Speaker reference')
-                    if not isinstance(reference, dict) or not isinstance(reference.get('path'), str):
-                        raise ValueError('Missing reference')
-                    reference = {'path':reference['path'], 'meta':{'_type':'gradio.FileData'}}
-                    self._xtts_references[endpoint] = reference
-                    self.xtts_reference = reference
+                    with _tts_phase(timing, 'reference_lookup'):
+                        response = await self.client.get(endpoint+'/config', headers=headers)
+                        response.raise_for_status()
+                        components = response.json()['components']
+                        reference = next(c['props']['value'] for c in components
+                            if c['type']=='audio' and c['props'].get('label')=='Speaker reference')
+                        if not isinstance(reference, dict) or not isinstance(reference.get('path'), str):
+                            raise ValueError('Missing reference')
+                        reference = {'path':reference['path'], 'meta':{'_type':'gradio.FileData'}}
+                        self._xtts_references[endpoint] = reference
+                        self.xtts_reference = reference
                 call = endpoint+'/gradio_api/call/'+settings['tts_api_name']
-                response = await self.client.post(call, headers=headers,
-                    json={'data':[text, reference, settings['tts_temperature']]})
-                response.raise_for_status()
-                event_id = response.json()['event_id']
-                if not isinstance(event_id, str) or not event_id.isalnum():
-                    raise ValueError('Invalid event id')
+                with _tts_phase(timing, 'api_submission'):
+                    response = await self.client.post(call, headers=headers,
+                        json={'data':[text, reference, settings['tts_temperature']]})
+                    response.raise_for_status()
+                    event_id = response.json()['event_id']
+                    if not isinstance(event_id, str) or not event_id.isalnum():
+                        raise ValueError('Invalid event id')
                 event = ''
-                async with self.client.stream('GET', call+'/'+event_id, headers=headers) as stream:
-                    stream.raise_for_status()
-                    async for line in stream.aiter_lines():
-                        if line.startswith('event:'): event=line.partition(':')[2].strip()
-                        elif line.startswith('data:') and event=='error':
-                            detail=line.partition(':')[2].lower()
-                            if any(word in detail for word in ('quota','limit exceeded','gpu duration','too many requests')):
-                                raise AudioBankError('Darija XTTS shared GPU quota is exhausted. Check HF_TOKEN or wait for the quota reset.')
-                            raise AudioBankError('Darija XTTS generation failed. Its hosted Space may be busy or unavailable.')
-                        elif line.startswith('data:') and event=='complete':
-                            result=json.loads(line.partition(':')[2])
-                            path=result[0]['path']
-                            if not isinstance(path,str) or not path.startswith('/tmp/gradio/') or '..' in path.split('/'):
-                                raise ValueError('Invalid audio path')
-                            # The Space sometimes returns a malformed /gradi-prefixed URL.
-                            # Use its same-origin canonical file route, never a returned host.
-                            response=await self.client.get(endpoint+'/gradio_api/file='+quote(path,safe='/'),headers=headers)
-                            response.raise_for_status()
-                            return response
-                raise AudioBankError('Darija XTTS stream ended without audio.')
+                # This includes provider queue/generation and SSE transport. The
+                # API does not expose reliable separate queue/inference clocks.
+                with _tts_phase(timing, 'remote_wait') as stop_wait:
+                    async with self.client.stream('GET', call+'/'+event_id, headers=headers) as stream:
+                        stream.raise_for_status()
+                        async for line in stream.aiter_lines():
+                            if line.startswith('event:'): event=line.partition(':')[2].strip()
+                            elif line.startswith('data:') and event=='error':
+                                detail=line.partition(':')[2].lower()
+                                if any(word in detail for word in ('quota','limit exceeded','gpu duration','too many requests')):
+                                    raise AudioBankError('Darija XTTS shared GPU quota is exhausted. Check HF_TOKEN or wait for the quota reset.')
+                                raise AudioBankError('Darija XTTS generation failed. Its hosted Space may be busy or unavailable.')
+                            elif line.startswith('data:') and event=='complete':
+                                result=json.loads(line.partition(':')[2])
+                                path=result[0]['path']
+                                if not isinstance(path,str) or not path.startswith('/tmp/gradio/') or '..' in path.split('/'):
+                                    raise ValueError('Invalid audio path')
+                                stop_wait()
+                                # Preserve the same-origin route and stream lifetime.
+                                with _tts_phase(timing, 'result_download'):
+                                    response=await self.client.get(endpoint+'/gradio_api/file='+quote(path,safe='/'),headers=headers)
+                                    response.raise_for_status()
+                                return response
+                    raise AudioBankError('Darija XTTS stream ended without audio.')
         except TimeoutError:
             raise AudioBankError('Darija XTTS timed out waiting for its shared GPU. Try again later.') from None
         except (KeyError,IndexError,TypeError,ValueError,StopIteration):
@@ -453,11 +501,19 @@ class DemoVoice:
             raise AudioBankError('The demo voice is closed.')
         started = time.perf_counter()
         record = {'provider': self.provider, 'ok': False, 'cache_hits': 0, 'cache_misses': 0,
-                  'coalesced_waits': 0, 'elapsed_clock': 'perf_counter'}
+                  'coalesced_waits': 0, 'elapsed_clock': 'perf_counter',
+                  'render_id': self._next_render_id, 'status': 'in_progress',
+                  'phases_ms': {}, 'part_timings': []}
+        self._next_render_id += 1
         try:
             rendered = await self._render_audio(action, values, record)
             record['ok'] = True
+            record['status'] = 'completed'
             return rendered
+        except BaseException as exc:
+            record['status'] = 'cancelled' if isinstance(exc, asyncio.CancelledError) else 'failed'
+            record['error_kind'] = _tts_error_kind(exc)
+            raise
         finally:
             record['elapsed_ms'] = (time.perf_counter()-started)*1000
             self.calls.append(record)
@@ -471,8 +527,9 @@ class DemoVoice:
         if action.kind == 'readback' and settings.get('tts_readback_mode', 'whole') == 'grouped':
             # A complete existing render is cheaper and preserves its prosody.
             # Never store assembled groups under its full-text cache identity.
-            legacy_ready = all(read_speech_cache(speech_cache_path(settings, self.root, part),
-                self.config['runtime']) is not None for part in parts)
+            with _tts_phase(record, 'legacy_cache_probe'):
+                legacy_ready = all(read_speech_cache(speech_cache_path(settings, self.root, part),
+                    self.config['runtime']) is not None for part in parts)
             if not legacy_ready:
                 maximum = settings.get('tts_readback_group_chars', min(96, settings['tts_max_chars']))
                 try:
@@ -486,34 +543,81 @@ class DemoVoice:
                     record['render_mode'] = 'grouped'
         record['parts'] = len(parts)
         pieces = []
-        for part in parts:
+        for index, part in enumerate(parts):
             if self._closed:
                 raise AudioBankError('The demo voice is closed.')
-            path = speech_cache_path(settings, self.root, part)
-            raw = read_speech_cache(path, self.config['runtime'])
-            if raw is not None:
-                record['cache_hits'] += 1
-            else:
-                task = self._inflight.get(path)
-                if task is None:
-                    record['cache_misses'] += 1
-                    task = asyncio.create_task(self._produce_part(part, path, settings))
-                    self._inflight[path] = task
-                    def retire(done, key=path):
-                        if self._inflight.get(key) is done:
-                            self._inflight.pop(key, None)
-                        if not done.cancelled():
-                            done.exception()  # Retrieve failures even if every waiter left.
-                    task.add_done_callback(retire)
+            part_started = time.perf_counter()
+            part_record = {'index': index, 'status': 'in_progress', 'phases_ms': {},
+                           'elapsed_clock': 'perf_counter'}
+            record['part_timings'].append(part_record)
+            try:
+                path = speech_cache_path(settings, self.root, part)
+                with _tts_phase(part_record, 'cache_read_validate'):
+                    raw = read_speech_cache(path, self.config['runtime'])
+                if raw is not None:
+                    record['cache_hits'] += 1
+                    part_record['cache_outcome'] = 'hit'
                 else:
-                    record['coalesced_waits'] += 1
-                raw = await asyncio.shield(task)
-            pieces.append(pcm16(raw, self.config['runtime']))
-        pcm = b''.join(pieces)
-        return RenderedAudio(wav_bytes(pcm, self.config['runtime']), len(pcm)//2,
-            len(pcm)//2, ['synthetic_demo:'+settings['tts_model']], text=text)
+                    task = self._inflight.get(path)
+                    if task is None:
+                        record['cache_misses'] += 1
+                        part_record['cache_outcome'] = 'miss'
+                        production = {'producer_id': self._next_producer_id,
+                            'owner_render_id': record['render_id'], 'owner_part_index': index,
+                            'provider': self.provider, 'status': 'in_progress',
+                            'elapsed_clock': 'perf_counter', 'phases_ms': {}}
+                        self._next_producer_id += 1
+                        self.producer_calls.append(production)
+                        dispatched = time.perf_counter()
+                        task = asyncio.create_task(self._produce_part(part, path, settings, production, dispatched))
+                        self._inflight[path] = task
+                        self._inflight_timings[path] = production
+                        def retire(done, key=path, timing=production, started=dispatched):
+                            if self._inflight.get(key) is done:
+                                self._inflight.pop(key, None)
+                                self._inflight_timings.pop(key, None)
+                            if timing['status'] == 'in_progress':
+                                # Cancellation before the coroutine's first step
+                                # never enters its finally block.
+                                timing['status'] = 'cancelled' if done.cancelled() else 'failed'
+                                timing['error_kind'] = 'cancelled' if done.cancelled() else 'unexpected'
+                                timing['elapsed_ms'] = (time.perf_counter()-started)*1000
+                            if not done.cancelled():
+                                done.exception()  # Retrieve failures even if every waiter left.
+                        task.add_done_callback(retire)
+                    else:
+                        record['coalesced_waits'] += 1
+                        part_record['cache_outcome'] = 'coalesced'
+                    part_record['producer_id'] = self._inflight_timings[path]['producer_id']
+                    with _tts_phase(part_record, 'inflight_wait'):
+                        raw = await asyncio.shield(task)
+                with _tts_phase(part_record, 'pcm_conversion'):
+                    pieces.append(pcm16(raw, self.config['runtime']))
+                part_record['status'] = 'completed'
+            except BaseException as exc:
+                part_record['status'] = 'cancelled' if isinstance(exc, asyncio.CancelledError) else 'failed'
+                part_record['error_kind'] = _tts_error_kind(exc)
+                raise
+            finally:
+                part_record['elapsed_ms'] = (time.perf_counter()-part_started)*1000
+        with _tts_phase(record, 'assembly'):
+            pcm = b''.join(pieces)
+            return RenderedAudio(wav_bytes(pcm, self.config['runtime']), len(pcm)//2,
+                len(pcm)//2, ['synthetic_demo:'+settings['tts_model']], text=text)
 
-    async def _produce_part(self, part, path, settings):
+    async def _produce_part(self, part, path, settings, timing, started):
+        try:
+            raw = await self._produce_part_audio(part, path, settings, timing)
+            timing['status'] = 'completed'
+            return raw
+        except BaseException as exc:
+            timing['status'] = 'cancelled' if isinstance(exc, asyncio.CancelledError) else 'failed'
+            timing['error_kind'] = _tts_error_kind(exc)
+            raise
+        finally:
+            timing['elapsed_ms'] = (time.perf_counter()-started)*1000
+
+    async def _produce_part_audio(self, part, path, settings, timing):
         key_name={'elevenlabs':'ELEVENLABS_API_KEY','azure':'AZURE_SPEECH_KEY','groq':'GROQ_API_KEY','darija_xtts':'HF_TOKEN'}[self.provider]
         key = os.getenv(key_name, '')
         if not key and self.provider!='darija_xtts':
@@ -521,28 +625,34 @@ class DemoVoice:
         if self.provider=='groq': self.limiter.reserve()
         try:
             if self.provider=='darija_xtts':
-                response = await self._darija_xtts(part, settings)
-            elif self.provider=='azure':
-                ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ar-MA">'
-                    f'<voice name={quoteattr(settings["tts_voice"])}>{escape(part)}</voice></speak>')
-                response=await self.client.post(azure_speech_url(),
-                    headers={'Ocp-Apim-Subscription-Key':key,'Content-Type':'application/ssml+xml',
-                        'X-Microsoft-OutputFormat':'riff-16khz-16bit-mono-pcm','User-Agent':'DarijaVoice'},
-                    content=ssml.encode('utf-8'))
-            elif self.provider=='elevenlabs':
-                response=await self.client.post(settings['tts_url']+settings['tts_voice'],
-                    params={'output_format':settings['tts_output_format']},
-                    headers={'xi-api-key':key},json={'model_id':settings['tts_model'],'text':part})
+                response = await self._darija_xtts(part, settings, timing=timing)
+                response.raise_for_status()
             else:
-                response = await self.client.post(settings['tts_url'],
-                    headers={'Authorization':'Bearer '+key}, json={'model':settings['tts_model'],
-                        'voice':settings['tts_voice'], 'input':part, 'response_format':'wav'})
-            response.raise_for_status()
-            raw = response.content
-            if self.provider=='elevenlabs':
-                if not raw or len(raw)%2: raise AudioBankError('ElevenLabs returned empty or incomplete PCM audio.')
-                raw=wav_bytes(raw,self.config['runtime'])
-            pcm16(raw, self.config['runtime'])
+                # These APIs return audio in the submission response; do not
+                # invent separate remote generation and download measurements.
+                with _tts_phase(timing, 'provider_request'):
+                    if self.provider=='azure':
+                        ssml = ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="ar-MA">'
+                            f'<voice name={quoteattr(settings["tts_voice"])}>{escape(part)}</voice></speak>')
+                        response=await self.client.post(azure_speech_url(),
+                            headers={'Ocp-Apim-Subscription-Key':key,'Content-Type':'application/ssml+xml',
+                                'X-Microsoft-OutputFormat':'riff-16khz-16bit-mono-pcm','User-Agent':'DarijaVoice'},
+                            content=ssml.encode('utf-8'))
+                    elif self.provider=='elevenlabs':
+                        response=await self.client.post(settings['tts_url']+settings['tts_voice'],
+                            params={'output_format':settings['tts_output_format']},
+                            headers={'xi-api-key':key},json={'model_id':settings['tts_model'],'text':part})
+                    else:
+                        response = await self.client.post(settings['tts_url'],
+                            headers={'Authorization':'Bearer '+key}, json={'model':settings['tts_model'],
+                                'voice':settings['tts_voice'], 'input':part, 'response_format':'wav'})
+                    response.raise_for_status()
+            with _tts_phase(timing, 'audio_validation'):
+                raw = response.content
+                if self.provider=='elevenlabs':
+                    if not raw or len(raw)%2: raise AudioBankError('ElevenLabs returned empty or incomplete PCM audio.')
+                    raw=wav_bytes(raw,self.config['runtime'])
+                pcm16(raw, self.config['runtime'])
         except httpx.HTTPStatusError as exc:
             if self.provider=='darija_xtts':
                 raise AudioBankError(f'Darija XTTS returned HTTP {exc.response.status_code}. Check the hosted Space availability and Hugging Face quota.') from None
@@ -561,14 +671,15 @@ class DemoVoice:
             raise AudioBankError(f'{provider_name} speech returned HTTP {exc.response.status_code}. Check your API key, voice access, plan and credits.') from None
         except httpx.HTTPError:
             raise AudioBankError('The demo voice service could not be reached.') from None
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = None
-        try:
-            with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.stem+'.', suffix='.tmp', delete=False) as stream:
-                temporary = Path(stream.name)
-                stream.write(raw)
-            temporary.replace(path)
-        finally:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
+        with _tts_phase(timing, 'cache_write'):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = None
+            try:
+                with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.stem+'.', suffix='.tmp', delete=False) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(raw)
+                temporary.replace(path)
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
         return raw

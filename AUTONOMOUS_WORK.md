@@ -31,37 +31,34 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    tune VAD from nonzero samples alone. See
    bench/results/short_answer_endpoint_audit_20260906.json.
 
-3. Completed: cross-row/root linked-address coverage now spans a configured
-   collection with existing transaction machinery, explicit positive answers and
-   fresh question IDs. Participating deletes/clears reject atomically; cancellation
-   and recovery discard the draft. Root/row previews and exact enum/integer
-   routing are updated.34 new cases,15 mocked browser checks; final suite
-   1283passed/1native-review skip (45.86s). See
-   bench/results/cross_address_implementation_20260906.md.
-   One frozen English actual Groq opening FAILED response_schema validation
-   (ValueError/RouterOutputError,1671.72ms), with saved state unchanged. Raw model
-   output was not captured, so the exact violated rule is unknown. Do not call
-   this a provider JSONSchema rejection or retry it until green.
+3. Next bounded evidence step: design a trustworthy ASR runtime snapshot for
+   future session reports. Existing successful reports lack exact build/device
+   provenance; do not pool their model timings. Reuse pinned preflight/bridge
+   facts without rehashing large models per turn or trusting arbitrary remote
+   metadata. Distinguish configured, bridge-reported and verified facts; unknown
+   device/build stays unknown. Start with source inspection and offline fixtures,
+   no new speech calls, downloads, dependencies or provider switching.
 
-4. Next concrete step: make local collection response-validation evidence identify
-   its safe static rule (or bounded synthetic diagnostic envelope), using offline
-   fixtures first. The current response_schema stage cannot distinguish shape
-   from coherence failures. Do not guess the lost model output or alter the prompt
-   without evidence. No new ASR experiment is justified until native review.
+4. On the next otherwise-needed cold XTTS reply, inspect the new per-producer
+   phases. Historical evidence shows8.315s synthesis for a time-only correction,
+   but cannot split that old wait. Do not generate extra speech solely to fill
+   phase fields. Existing grouped/whole samples need native listening review
+   before changing the whole-summary default. See
+   bench/results/voice_latency_audit_20260906.md and bench/VOICE_REPLAY.md.
 
-5. Timing correction completed: router durations use perf_counter with explicit
-   clock provenance. Windows monotonic had15.625ms resolution and reported0ms for
-   a local lookup. Six independent new tests and65relevant cases pass. This fixes
-   measurement, not recognition or demonstrated voice speed.
+5. On the next newly justified collection rejection, use static validation_rules
+   to identify the failed contract. The old cross-address model output is lost;
+   no root cause or fix can be claimed retrospectively. Do not replay it until
+   green, invent its candidate or change the prompt from a guessed cause.
 
 ## Current runtime and completed checkpoint
 
 - Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-06T02:17:12 Casablanca,
-  supervisorPID36376 (launcher wrapper32848).
+  --start --hosted-fallback --device cpu at 2026-09-06T02:41:07 Casablanca,
+  supervisorPID16688 (launcher wrapper21828).
   Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/cross_address_refresh_20260906.json records the no-inference checks.
-  Cross-row/root links, root/row preview masking and the router timing fix are loaded;
+  bench/results/phase_refresh_20260906.json records the no-inference checks.
+  Static collection-rule diagnostics and per-render/producer TTS phase timing are loaded;
   no new shipped voice domain was added. Before refresh there were no established
   engine connections; STOP closed owned services and freed all three ports.
   Context is absent from both shipped task configs. Status-file sharing failures
@@ -121,6 +118,41 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   local unless separately authorized for publication; no automatic force pushes.
 
 ## Completed steps and prior evidence (historical)
+
+- 2026-09-06: static collection response provenance implemented with<=8 sorted
+  allowlisted rules, no input/locations/messages in diagnostics, unchanged
+  schema/prompt/acceptance/retries.32 new tests and135relevant cases pass.
+- 2026-09-06: historical voice latency audit found8.315s cold XTTS whole readback
+  on a time-only correction. Separate render/part/producer timings now distinguish
+  cache, submission, combined remote wait, download, validation and assembly.
+  Shared producers are counted once; cancelled/incomplete work is explicit and
+  session snapshots detached.10 new tests and56relevant cases pass. Final full
+  suite1325passed/1native-review skip,14known warnings,62.33s. No new inference
+  calls, speech changes, aliases, model/dependency pins or publication this turn.
+
+3. Completed: cross-row/root linked-address coverage now spans a configured
+   collection with existing transaction machinery, explicit positive answers and
+   fresh question IDs. Participating deletes/clears reject atomically; cancellation
+   and recovery discard the draft. Root/row previews and exact enum/integer
+   routing are updated.34 new cases,15 mocked browser checks; final suite
+   1283passed/1native-review skip (45.86s). See
+   bench/results/cross_address_implementation_20260906.md.
+   One frozen English actual Groq opening FAILED response_schema validation
+   (ValueError/RouterOutputError,1671.72ms), with saved state unchanged. Raw model
+   output was not captured, so the exact violated rule is unknown. Do not call
+   this a provider JSONSchema rejection or retry it until green.
+
+4. Next concrete step: make local collection response-validation evidence identify
+   its safe static rule (or bounded synthetic diagnostic envelope), using offline
+   fixtures first. The current response_schema stage cannot distinguish shape
+   from coherence failures. Do not guess the lost model output or alter the prompt
+   without evidence. No new ASR experiment is justified until native review.
+
+5. Timing correction completed: router durations use perf_counter with explicit
+   clock provenance. Windows monotonic had15.625ms resolution and reported0ms for
+   a local lookup. Six independent new tests and65relevant cases pass. This fixes
+   measurement, not recognition or demonstrated voice speed.
+
 
 0. **Objective:** a reusable Darija task engine. Pizza and fictional clinic share
    transactions, clarification, correction and versioned confirmation. Config-added

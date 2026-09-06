@@ -84,3 +84,36 @@ A passed transport run is not necessarily a completed task. Inspect the final
 server status and state; ask for an `accepted` final action only when that is what
 the supplied conversation should achieve. The fictional clinic still does not
 check availability or book appointments, and the pizza demo places no order.
+
+
+## Interpret speech timing
+
+Use the matching server session report for component durations. `tts_calls` has
+one entry per completed, failed or cancelled render, with `render_id`, overall
+`elapsed_ms`, cache counts and `part_timings`. Each part describes its own cache
+read/validation, optional shared-producer wait and PCM conversion. Render-level
+phases cover any grouped-mode legacy-cache probe and final WAV assembly.
+
+`tts_producer_calls` records each dispatched synthesis producer once. A missed or
+coalesced part references its `producer_id`; IDs are local to that voice-bank
+instance/session, not global identifiers. XTTS phases distinguish reference
+lookup, API submission, combined remote waiting, result download, audio validation
+and cache writing. `remote_wait` combines provider queueing, generation and SSE
+transport; the API does not establish their separate costs. Other TTS APIs that
+return audio directly have one aggregate `provider_request` phase.
+
+These spans overlap: a render's `inflight_wait` includes its producer's work.
+Do not add waiter and producer durations or count shared remote work once per
+waiting render. Cache-only renders create no new producer. A cancelled render
+may leave shared work running for another waiter. A saved producer marked
+`in_progress` has no finalized `elapsed_ms`; its snapshot must not be treated as
+a completed request. Reports deep-copy these records, so later producer completion
+does not rewrite a previously saved snapshot. All phase clocks use `perf_counter`.
+
+Synthesis finishes before the current pipeline emits assistant text and audio.
+A short text-to-audio-delivery interval therefore does not measure the earlier
+synthesis wait. Keep generated playback length separate from audio-ready latency,
+and keep the harness's simulated ACK separate from real device playback.
+Historical reports without these phases remain incomplete evidence. Capture the
+new data on the next otherwise-needed uncached reply; do not repeatedly synthesize
+an unchanged prompt just to search for a faster result.

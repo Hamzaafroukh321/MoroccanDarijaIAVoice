@@ -19,6 +19,9 @@ the pizza demo does not place orders.
   healthy speech services. Real service failures and STOP still close owned jobs.
 - Synthetic Darija XTTS demo voice, local reply caching and optional semantic
   readback grouping. Whole summaries remain the default pending quality review.
+- Speech timings separate cache reads, remote submission/wait/download and local
+  conversion/assembly. Shared synthesis work is recorded once, with references
+  from waiting renders; incomplete/cancelled work stays explicitly identified.
 - Configured flat tasks, pizza collections and an opt-in configurable collection
   adapter with validated operations, correction handling and separate pending/
   committed values. A collection can contain repeated rows plus shared root fields;
@@ -32,6 +35,9 @@ the pizza demo does not place orders.
 - Recognized router schema-configuration errors stop immediately with a static
   setup message instead of retrying an identical request or asking for repeated
   speech. Other error shapes keep the existing retry behavior.
+- Configured collection rejections identify bounded static validation rules,
+  separating shape/coherence from field, value and address failures without
+  including rejected values or arbitrary property names in diagnostics.
 - Router duration telemetry uses a high-resolution performance clock with explicit
   provenance, preserving submillisecond local lookup measurements on Windows.
 - Conditional clarification schema: ambiguous values require an affected field.
@@ -45,7 +51,7 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1283 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1325 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
@@ -59,6 +65,14 @@ These checks do not establish that a model always identifies the dependency.
 One frozen English live opening for the extension failed local response validation
 and left the saved state unchanged. The diagnostic did not capture the raw model
 output, so its specific failed rule is unresolved; no repeat attempt was made.
+Future collection parse failures now expose bounded static rule codes. Thirty-two
+new offline tests verify classification and exclusion of rejected data from
+diagnostics. This instrumentation does not recover or fix that historical response.
+A historical successful clinic run spent 8.315 seconds rendering a new whole
+summary after a time-only correction. The new TTS subphase records passed ten
+offline tests, including shared requests, errors, cancellation and detached
+session snapshots. No new live synthesis was performed to repeat this timing;
+whole-summary mode and pronunciation review requirements remain unchanged.
 The new collection router passed one real English API compatibility check after
 fixing an overlapping-union HTTP400 rejection. Its strict wire schema constrains
 structure and configured names; local parsing validates root/row relationships

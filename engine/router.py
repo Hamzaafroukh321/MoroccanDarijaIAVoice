@@ -18,6 +18,7 @@ from engine.dialogue import validate_resolution_identity, validate_request_disca
 from engine.temporal_grounding import TemporalGroundingError, validate_temporal_grounding
 from engine.enum_grounding import EnumAlternativeError, validate_enum_alternatives
 from engine.stt import RateLimiter
+from engine.collection_validation import CollectionValidationError
 
 
 class RouterError(RuntimeError):
@@ -564,7 +565,10 @@ class Router:
                         'Use intent=ambiguous, ops=[], no affirmation, and an ambiguous_value question for an affected field. '
                         'On an initial question, put EVERY independently clear explicit OTHER field in proposed_ops. '
                         'Do not propose any unresolved enum choice, infer dependent associations, or replace an existing pending question.'})
-                if isinstance(exc,ValidationError):
+                if isinstance(exc, CollectionValidationError):
+                    self.calls[-1]['validation_rules'] = list(exc.validation_rules)
+                    self.calls[-1]['validation_rules_truncated'] = exc.rules_truncated
+                elif isinstance(exc,ValidationError):
                     self.calls[-1]['validation_errors']=[{'location':list(error['loc']),'type':error['type'],'message':error['msg']}
                         for error in exc.errors(include_input=False,include_url=False)]
                     try:

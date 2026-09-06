@@ -209,6 +209,20 @@ advance to the linked time question while the choice stays pending. Date and tim
 answers continue through normal routing, including apparently simple numeric
 answers; this lookup never guesses their interpretation.
 
+### Diagnose rejected collection responses
+
+Collection parsing reports bounded static `validation_rules` in router-call
+telemetry at the `response_schema` stage. Rules distinguish response shape,
+intent/question coherence, configured field/value checks, root/row address
+mismatches and repeated linked addresses. They are sorted and deduplicated, with
+at most eight entries and a `validation_rules_truncated` flag. No candidate values,
+unknown property names, validation locations or provider messages are included.
+
+These diagnostics do not repair the response or change retry behavior. Invalid
+configuration remains a separate validation path. Historical reports without rule
+codes cannot establish which contract failed; do not reconstruct a missing model
+response from a guessed rule.
+
 ## Verify the new task
 
 Use the [multi-turn replay guide](../bench/VOICE_REPLAY.md) for supplied WAVs and

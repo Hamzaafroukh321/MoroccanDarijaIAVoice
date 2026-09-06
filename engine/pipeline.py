@@ -155,6 +155,7 @@ class VoiceSession:
         self.router_call_start=len(getattr(router,'calls',[]))
         self.local_router_call_start=len(getattr(router,'local_calls',[]))
         self.tts_call_start=len(getattr(bank,'calls',[]))
+        self.tts_producer_call_start=len(getattr(bank,'producer_calls',[]))
         self.done=asyncio.Event()
         self.last_assistant_action=None
         self.last_assistant_text=None
@@ -491,7 +492,8 @@ class VoiceSession:
         prefix = 'demo_session' if self.config.get('demo') else 'session'
         if self.config.get('demo'):
             result.update(is_demo=True, evaluation_eligible=False, response_voice=self.config['demo']['tts_model'],
-                tts_calls=getattr(self.bank,'calls',[])[self.tts_call_start:],
+                tts_calls=deepcopy(getattr(self.bank,'calls',[])[self.tts_call_start:]),
+                tts_producer_calls=deepcopy(getattr(self.bank,'producer_calls',[])[self.tts_producer_call_start:]),
                 order_schema_version=self.config['demo'].get('order_schema_version',1),
                 pending_clarification=deepcopy(getattr(self.task,'pending_clarification',None)),
                 pending_proposal=deepcopy(getattr(self.task,'pending_proposal',None)),
