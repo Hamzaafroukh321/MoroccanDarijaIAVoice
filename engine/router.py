@@ -459,7 +459,7 @@ class Router:
     async def route(self, transcript, state):
         if configured_collection_demo(self.config) or flat_scoped_demo(self.config):
             from engine.scoped_answers import exact_linked_answer
-            local_started = time.monotonic()
+            local_started = time.perf_counter()
             operation = exact_linked_answer(self.config, state, transcript)
             if operation is not None:
                 parsed = parse_response(json.dumps(dict(ops=[operation], confidence=1.0,
@@ -476,14 +476,15 @@ class Router:
                     parsed.resolves_clarification, matches)
                 parsed._routing_source = 'configured_exact_answer'
                 self.local_calls.append({'ok': True, 'source': parsed._routing_source,
-                    'elapsed_ms': (time.monotonic() - local_started) * 1000})
+                    'elapsed_clock': 'perf_counter',
+                    'elapsed_ms': (time.perf_counter() - local_started) * 1000})
                 return parsed
         if not self.api_key: raise RouterError('GROQ_API_KEY is required for the slot router.')
         messages=build_messages(self.config,state,transcript)
         all_output_failures=True
         for attempt in range(self.settings['retries']+1):
             self.limiter.reserve()
-            started = time.monotonic()
+            started = time.perf_counter()
             raw = None
             output_received = False
             validation_stage = None
@@ -527,7 +528,8 @@ class Router:
                     validate_request_discard(parsed.model_dump(), state.get('pending_request'),
                         pending_clarification=state.get('pending_clarification'),
                         pending_proposal=state.get('pending_proposal'))
-                self.calls.append({'ok':True,'provider_failure':False,'elapsed_ms':(time.monotonic()-started)*1000})
+                self.calls.append({'ok':True,'provider_failure':False,'elapsed_clock':'perf_counter',
+                    'elapsed_ms':(time.perf_counter()-started)*1000})
                 if getattr(parsed,'_clarification_intent_normalized',False):
                     self.calls[-1]['clarification_intent_normalized']={'from':'task','to':parsed.intent,'kind':parsed.clarification.kind}
                 if getattr(parsed,'_mixed_proposal_normalized',False):
@@ -538,7 +540,8 @@ class Router:
                 self.invalid_responses+=1
                 self.calls.append({'ok':False,'provider_failure':isinstance(exc,httpx.HTTPError),'error':type(exc).__name__,
                     'failure_kind':'model_output' if output_received else 'provider',
-                    'http_status':getattr(getattr(exc,'response',None),'status_code',None),'elapsed_ms':(time.monotonic()-started)*1000})
+                    'http_status':getattr(getattr(exc,'response',None),'status_code',None),'elapsed_clock':'perf_counter',
+                    'elapsed_ms':(time.perf_counter()-started)*1000})
                 if output_received and validation_stage is not None:
                     self.calls[-1]['validation_stage'] = validation_stage
                 if is_schema_configuration_error(getattr(exc, 'response', None)):

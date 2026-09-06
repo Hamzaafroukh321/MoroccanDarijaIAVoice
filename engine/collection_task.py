@@ -112,20 +112,23 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
             raise ValueError('An unintelligible row-field question requires exactly one row.')
         linked = clarification.get('linked_addresses')
         if linked is not None:
-            if not isinstance(linked, list) or len(linked) > min(39, len(self.item_slots) - 1):
-                raise ValueError('Linked addresses exceed the configured row-field limit.')
-            if linked and (kind != 'ambiguous_value' or field not in self.item_slots or len(ids) != 1):
-                raise ValueError('Only an ambiguous value question on one row can link addresses.')
-            seen = set()
+            maximum = len(self.root_slots) + self.config['demo']['collection_max_items'] * len(self.item_slots)
+            if not isinstance(linked, list) or len(linked) > min(39, maximum - 1):
+                raise ValueError('Linked addresses exceed the configured address limit.')
+            if linked and (kind != 'ambiguous_value' or field is None):
+                raise ValueError('Only an ambiguous value question can link addresses.')
+            seen = {(ids[0] if ids else None, field)}
             for address in linked:
                 if (not isinstance(address, dict) or set(address) != {'item_id', 'slot'} or
-                        type(address['item_id']) is not int or address['item_id'] < 1 or
-                        address['item_id'] != ids[0] or not isinstance(address['slot'], str) or
-                        address['slot'] not in self.item_slots or address['slot'] == field):
-                    raise ValueError('Linked addresses must name other configured fields on the same row.')
+                        not isinstance(address['slot'], str) or address['slot'] not in self.slots):
+                    raise ValueError('Linked addresses must name configured fields with exact row or root scope.')
+                target, key = address['item_id'], address['slot']
+                if ((key in self.root_slots and target is not None) or
+                        (key in self.item_slots and (type(target) is not int or target < 1 or target not in existing))):
+                    raise ValueError('Linked roots require null IDs; linked row fields require existing positive IDs.')
                 pair = (address['item_id'], address['slot'])
                 if pair in seen:
-                    raise ValueError('Linked addresses must be distinct.')
+                    raise ValueError('Linked companions must be distinct and exclude the primary address.')
                 seen.add(pair)
         pending = {'id': self._next_clarification_id, 'kind': kind, 'slot': field, 'item_ids': deepcopy(ids)}
         if linked:
@@ -181,25 +184,26 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
         if proposal is None or not proposal.get('linked_addresses'):
             return None
         group = proposal['linked_addresses']
-        participating_id = group[0]['item_id']
+        participating_ids = {address['item_id'] for address in group if address['item_id'] is not None}
         addresses = {(address['item_id'], address['slot']) for address in group}
-        row = next(row for row in trial.values[self.collection] if row['id'] == participating_id)
+        targets = {None: trial.values, **{row['id']: row for row in trial.values[self.collection]}}
         for operation in operations:
-            if operation['op'] == 'delete' and operation['item_id'] == participating_id:
-                raise ValueError('A linked answer cannot delete its participating row.')
+            if operation['op'] == 'delete' and operation['item_id'] in participating_ids:
+                raise ValueError('A linked answer cannot delete any participating row.')
             if (operation['item_id'], operation['slot']) in addresses and (
                     operation['op'] not in {'set', 'add'} or operation['value'] in (None, '', []) or
-                    row.get(operation['slot']) in (None, '', [])):
+                    targets.get(operation['item_id'], {}).get(operation['slot']) in (None, '', [])):
                 raise ValueError('Linked addresses require explicit nonempty positive answers.')
         answered = {(address['item_id'], address['slot']) for address in proposal['answered_addresses']}
         answered.update((operation['item_id'], operation['slot']) for operation in operations
             if (operation['item_id'], operation['slot']) in addresses and
-            operation['op'] in {'set', 'add'} and row.get(operation['slot']) not in (None, '', []))
+            operation['op'] in {'set', 'add'} and
+            targets.get(operation['item_id'], {}).get(operation['slot']) not in (None, '', []))
         remaining = [address for address in group if (address['item_id'], address['slot']) not in answered]
         if remaining:
             current = remaining[0]
             next_pending = self._scope({'kind': 'ambiguous_value', 'slot': current['slot'],
-                'item_ids': [current['item_id']],
+                'item_ids': [] if current['item_id'] is None else [current['item_id']],
                 'linked_addresses': [address for address in group if address != current]}, trial.values)
             staged = {'ops': deepcopy(combined), 'state': deepcopy(trial.values),
                 'next_item_id': trial.next_item_id, 'base_version': proposal['base_version'],
@@ -217,7 +221,7 @@ class ConfiguredCollectionState(ScopedDialogue, VersionedConfirmation):
         trial = deepcopy(self)
         trial.apply(operations)
         pending = self._scope(clarification, trial.values)
-        group = ([{'item_id': pending['item_ids'][0], 'slot': pending['slot']}] + pending['linked_addresses']
+        group = ([{'item_id': pending['item_ids'][0] if pending['item_ids'] else None, 'slot': pending['slot']}] + pending['linked_addresses']
                  if pending.get('linked_addresses') else None)
         for operation in operations:
             target = operation['item_id']

@@ -19,16 +19,19 @@ def _positive_integer(value):
     return type(value) is int and value > 0
 
 
-def _addresses(value, row_id, fields):
+def _addresses(value, roots, fields, row_ids):
     if not isinstance(value, list):
         raise ValueError('Expected linked addresses.')
     result = []
     for address in value:
         if (not isinstance(address, dict) or set(address) != {'item_id', 'slot'} or
-                not _positive_integer(address['item_id']) or address['item_id'] != row_id or
-                not isinstance(address['slot'], str) or address['slot'] not in fields):
+                not isinstance(address['slot'], str) or address['slot'] not in roots + fields):
             raise ValueError('Invalid linked address.')
-        pair = (row_id, address['slot'])
+        target, field = address['item_id'], address['slot']
+        if ((field in roots and target is not None) or
+                (field in fields and (not _positive_integer(target) or target not in row_ids))):
+            raise ValueError('Linked addresses must match configured root or existing row scope.')
+        pair = (target, field)
         if pair in result:
             raise ValueError('Duplicate linked address.')
         result.append(pair)
@@ -45,28 +48,20 @@ def _current_field(config, state):
     if question.get('kind') != 'ambiguous_value' or not _positive_integer(question.get('id')):
         raise ValueError('Expected an identified ambiguous value question.')
     ids = question.get('item_ids')
-    if not isinstance(ids, list) or len(ids) != 1 or not _positive_integer(ids[0]):
-        raise ValueError('Expected one row identity.')
-    row_id, field = ids[0], question.get('slot')
-    fields = schema['item_slots']
-    if (not isinstance(field, str) or field not in fields or state.get('requested_slot') != field or
-            not _positive_integer(state.get('requested_item_id')) or state['requested_item_id'] != row_id):
+    roots, fields = schema['root_slots'], schema['item_slots']
+    field = question.get('slot')
+    if (not isinstance(ids, list) or not isinstance(field, str) or field not in roots + fields or
+            (field in roots and ids != []) or
+            (field in fields and (len(ids) != 1 or not _positive_integer(ids[0])))):
+        raise ValueError('Expected one configured root or row-field scope.')
+    row_id = ids[0] if ids else None
+    requested_id = state.get('requested_item_id')
+    if (state.get('requested_slot') != field or requested_id != row_id or
+            (row_id is not None and not _positive_integer(requested_id))):
         raise ValueError('The requested scope must match the pending question.')
     version, base = state.get('version'), proposal.get('base_version')
     if type(version) is not int or type(base) is not int or version < 0 or base != version:
         raise ValueError('The pending proposal must be current.')
-    full = _addresses(proposal.get('linked_addresses'), row_id, fields)
-    answered = _addresses(proposal.get('answered_addresses'), row_id, fields)
-    remaining = _addresses(proposal.get('remaining_addresses'), row_id, fields)
-    if (not 2 <= len(full) <= min(40, len(fields)) or not remaining or
-            remaining[0] != (row_id, field) or set(answered) & set(remaining) or
-            set(answered) | set(remaining) != set(full) or
-            answered != [address for address in full if address in answered] or
-            remaining != [address for address in full if address in remaining]):
-        raise ValueError('The pending linked group must have consistent explicit coverage.')
-    companions = _addresses(question.get('linked_addresses'), row_id, fields)
-    if companions != [address for address in full if address != (row_id, field)]:
-        raise ValueError('The question must retain the same linked group.')
     preview = proposal.get('state')
     rows = preview.get(schema['collection']) if isinstance(preview, dict) else None
     if not isinstance(rows, list) or len(rows) > config['demo']['collection_max_items']:
@@ -76,8 +71,21 @@ def _current_field(config, state):
         if not isinstance(row, dict) or not _positive_integer(row.get('id')) or row['id'] in row_ids:
             raise ValueError('Expected unique preview row identities.')
         row_ids.append(row['id'])
-    if row_id not in row_ids:
+    if row_id is not None and row_id not in row_ids:
         raise ValueError('The requested row must exist in the proposal preview.')
+    full = _addresses(proposal.get('linked_addresses'), roots, fields, row_ids)
+    answered = _addresses(proposal.get('answered_addresses'), roots, fields, row_ids)
+    remaining = _addresses(proposal.get('remaining_addresses'), roots, fields, row_ids)
+    maximum = len(roots) + config['demo']['collection_max_items'] * len(fields)
+    if (not 2 <= len(full) <= min(40, maximum) or not remaining or
+            remaining[0] != (row_id, field) or set(answered) & set(remaining) or
+            set(answered) | set(remaining) != set(full) or
+            answered != [address for address in full if address in answered] or
+            remaining != [address for address in full if address in remaining]):
+        raise ValueError('The pending linked group must have consistent explicit coverage.')
+    companions = _addresses(question.get('linked_addresses'), roots, fields, row_ids)
+    if companions != [address for address in full if address != (row_id, field)]:
+        raise ValueError('The question must retain the same linked group.')
     return row_id, field
 
 
@@ -149,7 +157,7 @@ def _enum_answer(slot, token):
 
 
 def exact_linked_answer(config, state, transcript):
-    """Return one set operation (three flat/four row keys), or safely abstain."""
+    """Return one set operation (three flat/four collection keys), or abstain."""
     if not isinstance(transcript, str):
         return None
     token = transcript.strip().casefold()

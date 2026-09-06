@@ -16,6 +16,112 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 
 ## Current priorities
 
+1. Keep the reusable task core and actual MoulSot + selected Darija XTTS demo.
+   Pizza, clinic and temporary configured collection fixtures share transactions,
+   drafts, corrections and fresh confirmation. Do not duplicate domain logic.
+
+2. Speech quality: the frozen short-utterance context experiment failed. Primary
+   author/runtime research found no justified padding, gain or prompt remedy.
+   Native listening of the existing synthetic clip and reviewed human short
+   replies are the missing evidence. Context stays disabled; do not rerun the
+   pair or invent aliases. See bench/results/short_utterance_research_20260906.md.
+   Actual offline Silero/endpoint audit kept one segment and lost32ms leading
+   audio, but does not establish intelligible clipping. The original recognition
+   error occurred on full direct input. Do not attribute it to endpointing or
+   tune VAD from nonzero samples alone. See
+   bench/results/short_answer_endpoint_audit_20260906.json.
+
+3. Completed: cross-row/root linked-address coverage now spans a configured
+   collection with existing transaction machinery, explicit positive answers and
+   fresh question IDs. Participating deletes/clears reject atomically; cancellation
+   and recovery discard the draft. Root/row previews and exact enum/integer
+   routing are updated.34 new cases,15 mocked browser checks; final suite
+   1283passed/1native-review skip (45.86s). See
+   bench/results/cross_address_implementation_20260906.md.
+   One frozen English actual Groq opening FAILED response_schema validation
+   (ValueError/RouterOutputError,1671.72ms), with saved state unchanged. Raw model
+   output was not captured, so the exact violated rule is unknown. Do not call
+   this a provider JSONSchema rejection or retry it until green.
+
+4. Next concrete step: make local collection response-validation evidence identify
+   its safe static rule (or bounded synthetic diagnostic envelope), using offline
+   fixtures first. The current response_schema stage cannot distinguish shape
+   from coherence failures. Do not guess the lost model output or alter the prompt
+   without evidence. No new ASR experiment is justified until native review.
+
+5. Timing correction completed: router durations use perf_counter with explicit
+   clock provenance. Windows monotonic had15.625ms resolution and reported0ms for
+   a local lookup. Six independent new tests and65relevant cases pass. This fixes
+   measurement, not recognition or demonstrated voice speed.
+
+## Current runtime and completed checkpoint
+
+- Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
+  --start --hosted-fallback --device cpu at 2026-09-06T02:17:12 Casablanca,
+  supervisorPID36376 (launcher wrapper32848).
+  Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
+  bench/results/cross_address_refresh_20260906.json records the no-inference checks.
+  Cross-row/root links, root/row preview masking and the router timing fix are loaded;
+  no new shipped voice domain was added. Before refresh there were no established
+  engine connections; STOP closed owned services and freed all three ports.
+  Context is absent from both shipped task configs. Status-file sharing failures
+  now receive bounded retries and independent best-effort publication; they cannot
+  kill healthy services. Check updated_at because locked snapshots can be stale.
+  The old supervisor22940 failed on WinError5 status replacement; failed snapshot
+  and native Windows lock reproduction are preserved in
+  bench/results/supervisor_status_failure_20260906.md. Exact lock owner unknown.
+  Whole readback remains default; conditional clarification schema, bounded retry
+  explicit enum guard, coupled-field staging and saved-detail recovery are active.
+  Earlier context checkpoint suite1001passed/1native-review skip (30.14s), including46 context
+  transport/preflight cases, native Windows sharing semantics and coupled-error
+  preservation. An initial full run exposed an overly exact timing assertion in
+  a transport fixture; deterministic pacing and delayed-ACK controls corrected
+  the test without altering production sender behavior. Earlier11 browser
+  recovery checks with mocked microphone/socket events. Read
+  .local/moulsot/supervisor.json for current status/PIDs; selected_device must
+  remain cpu on controlled refresh unless measurements justify a change. The
+  launcher's omitted-device default is still cuda. Actual ASR is pinned MoulSot
+  Q4_K_M plus Q8 audio projector, not base Qwen or Whisper; .env stays hosted.
+- To refresh, create .local/moulsot/STOP, verify stopped state and ports8000/8011/8012
+  free, remove only that marker and relaunch hidden in CPU mode. Do not kill an
+  individual child: that triggers one hosted recovery. Never stop other user apps.
+  Preflight hashes assets/runtime and can take tens of seconds. CPU requires
+  3072MiB start RAM/768MiB runtime; its guards do not query or claim GPU memory.
+  Optional experimental port8013 is now free; no duplicate model workers.
+- Independent agents completed their bounded tasks. Check status before reuse.
+- Recorded pizza two-turn replay now resolves questionID1 and reaches complete
+  readback, unconfirmed. Evidence: bench/results/local_two_turn_recovery_20260905.md.
+  The supplied excerpts alter original timing and have unknown exact human intent.
+- GPU clinic attempts timed out; a CPU alternative completed the short correction
+  in2.031s. First CPU full transport revealed eleven routed to08:00 and accepted
+  by scripted yes. Draft numeral normalization and conservative time consistency
+  guard fixed that observed case, including proposed times and safe retry.
+- Final checked clinic three-turn replay PASSED expected states/actions through
+  actual CPU MoulSot, Groq and Darija XTTS: doctorA/2026-09-08/10:30, change only
+  time to11:00, fresh readback, separate confirmation. Report:
+  bench/results/voice_transport_a0b25bf0ab4349a59c1b6313c100857a/report.json.
+  Saved session8f769b9529d44684b0cfb8b12f71c07d is demo_completed/confirmed=true.
+  Inputs and replies are synthetic; device/microphone/native listening untested.
+  Do not rerun this passing sequence without a new change/failure.
+- Full evidence, failed attempts and an18.533s edited listening excerpt:
+  bench/results/clinic_sequence_20260905/README.md. Excerpt removes waits and is
+  not latency evidence. Full run66.772s includes playback and source speech.
+- Earlier clinic checkpoint:719passed/1skipped,14 known warnings,41.16s. The skipped
+  native-reviewed number fixture and base research gates remain pending.
+
+- The user explicitly requested the latest GitHub snapshot; it was pushed to
+  Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
+  That published checkpoint passed1071tests/1native-review skip. The refreshed
+  local server includes subsequent fixes verified by1243tests/1skip. The user
+  explicitly authorized the snapshot now published atc5eaa9a, verified against
+  remote main. It includes collection and flat-answer fixes. Pre-push checks:84passed;
+  no credential patterns, recordings or models in the source snapshot.
+  An earlier clean source-only export
+  passed842/1skip after LF checksum correction. Later autonomous changes remain
+  local unless separately authorized for publication; no automatic force pushes.
+
+## Completed steps and prior evidence (historical)
+
 0. **Objective:** a reusable Darija task engine. Pizza and fictional clinic share
    transactions, clarification, correction and versioned confirmation. Config-added
    flat tasks now work in both the UI and supplied-audio replay. Keep the actual
@@ -133,71 +239,6 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    tune VAD/gain/timeouts without concrete new evidence. Improve shared task
    behavior from observed failures, with each next step bounded and recorded.
 
-## Current runtime and completed checkpoint
-
-- Main supervisor: deploy/local-moulsot/run_local_demo.py, refreshed hidden with
-  --start --hosted-fallback --device cpu at 2026-09-06T01:56:38 Casablanca,
-  supervisorPID2960 (launcher wrapper29304).
-  Both pages return200, no setup issues, MoulSot on this computer and darija_xtts;
-  bench/results/push_refresh_20260906.json records the no-inference checks.
-  The configured collection, linked-address and exact-answer changes are loaded;
-  no new shipped voice domain was added. Before refresh there were no established
-  engine connections; STOP closed owned services and freed all three ports.
-  Context is absent from both shipped task configs. Status-file sharing failures
-  now receive bounded retries and independent best-effort publication; they cannot
-  kill healthy services. Check updated_at because locked snapshots can be stale.
-  The old supervisor22940 failed on WinError5 status replacement; failed snapshot
-  and native Windows lock reproduction are preserved in
-  bench/results/supervisor_status_failure_20260906.md. Exact lock owner unknown.
-  Whole readback remains default; conditional clarification schema, bounded retry
-  explicit enum guard, coupled-field staging and saved-detail recovery are active.
-  Earlier context checkpoint suite1001passed/1native-review skip (30.14s), including46 context
-  transport/preflight cases, native Windows sharing semantics and coupled-error
-  preservation. An initial full run exposed an overly exact timing assertion in
-  a transport fixture; deterministic pacing and delayed-ACK controls corrected
-  the test without altering production sender behavior. Earlier11 browser
-  recovery checks with mocked microphone/socket events. Read
-  .local/moulsot/supervisor.json for current status/PIDs; selected_device must
-  remain cpu on controlled refresh unless measurements justify a change. The
-  launcher's omitted-device default is still cuda. Actual ASR is pinned MoulSot
-  Q4_K_M plus Q8 audio projector, not base Qwen or Whisper; .env stays hosted.
-- To refresh, create .local/moulsot/STOP, verify stopped state and ports8000/8011/8012
-  free, remove only that marker and relaunch hidden in CPU mode. Do not kill an
-  individual child: that triggers one hosted recovery. Never stop other user apps.
-  Preflight hashes assets/runtime and can take tens of seconds. CPU requires
-  3072MiB start RAM/768MiB runtime; its guards do not query or claim GPU memory.
-  Optional experimental port8013 is now free; no duplicate model workers.
-- Independent agents completed their bounded tasks. Check status before reuse.
-- Recorded pizza two-turn replay now resolves questionID1 and reaches complete
-  readback, unconfirmed. Evidence: bench/results/local_two_turn_recovery_20260905.md.
-  The supplied excerpts alter original timing and have unknown exact human intent.
-- GPU clinic attempts timed out; a CPU alternative completed the short correction
-  in2.031s. First CPU full transport revealed eleven routed to08:00 and accepted
-  by scripted yes. Draft numeral normalization and conservative time consistency
-  guard fixed that observed case, including proposed times and safe retry.
-- Final checked clinic three-turn replay PASSED expected states/actions through
-  actual CPU MoulSot, Groq and Darija XTTS: doctorA/2026-09-08/10:30, change only
-  time to11:00, fresh readback, separate confirmation. Report:
-  bench/results/voice_transport_a0b25bf0ab4349a59c1b6313c100857a/report.json.
-  Saved session8f769b9529d44684b0cfb8b12f71c07d is demo_completed/confirmed=true.
-  Inputs and replies are synthetic; device/microphone/native listening untested.
-  Do not rerun this passing sequence without a new change/failure.
-- Full evidence, failed attempts and an18.533s edited listening excerpt:
-  bench/results/clinic_sequence_20260905/README.md. Excerpt removes waits and is
-  not latency evidence. Full run66.772s includes playback and source speech.
-- Earlier clinic checkpoint:719passed/1skipped,14 known warnings,41.16s. The skipped
-  native-reviewed number fixture and base research gates remain pending.
-
-- The user explicitly requested the latest GitHub snapshot; it was pushed to
-  Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
-  That published checkpoint passed1071tests/1native-review skip. The refreshed
-  local server includes subsequent fixes verified by1243tests/1skip. The user
-  has now explicitly authorized publishing the current snapshot, including
-  the collection and flat-answer fixes. Pre-push targeted checks:84passed;
-  no credential patterns, recordings or models in the source snapshot.
-  An earlier clean source-only export
-  passed842/1skip after LF checksum correction. Later autonomous changes remain
-  local unless separately authorized for publication; no automatic force pushes.
 
 ## Operating rules
 

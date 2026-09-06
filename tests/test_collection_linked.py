@@ -117,15 +117,15 @@ def test_optional_companion_still_needs_explicit_new_answer(case):
     assert task.pending_proposal['remaining_addresses'] == [address(1, names['quantity'])]
 
 
-@pytest.mark.parametrize('invalid', ['root', 'cross_row', 'unknown_row', 'boolean', 'duplicate', 'primary', 'unknown_field'])
+@pytest.mark.parametrize('invalid', ['root_with_row_id', 'row_without_id', 'unknown_row', 'boolean', 'duplicate', 'primary', 'unknown_field'])
 def test_invalid_linked_addresses_reject_before_pending_or_committed_mutation(case, invalid):
     _, names, task = case
     candidate = question(names)
     targets = candidate['clarification']['linked_addresses']
-    if invalid == 'root':
-        targets[:] = [address(None, names['date'])]
-    elif invalid == 'cross_row':
-        targets[0]['item_id'] = 2
+    if invalid == 'root_with_row_id':
+        targets[:] = [address(1, names['date'])]
+    elif invalid == 'row_without_id':
+        targets[0]['item_id'] = None
     elif invalid == 'unknown_row':
         targets[0]['item_id'] = 99
     elif invalid == 'boolean':

@@ -34,7 +34,7 @@ class CollectionOperation(BaseModel):
 
 class CollectionAddress(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
-    item_id: int = Field(ge=1)
+    item_id: int | None = Field(ge=1)
     slot: str = Field(min_length=1)
 
 
@@ -54,7 +54,7 @@ class CollectionClarification(BaseModel):
         if self.kind == 'item_reference' and not self.item_ids:
             raise ValueError('An item-reference question requires explicit candidate row IDs.')
         if self.linked_addresses and self.kind != 'ambiguous_value':
-            raise ValueError('Only ambiguous values can link row fields.')
+            raise ValueError('Only ambiguous values can link addresses.')
         return self
 
 
@@ -133,14 +133,14 @@ def parse_collection_response(raw, config):
             raise ValueError('A row-field question requires exactly one row ID.')
         linked = question.linked_addresses or []
         if linked:
-            if (question.slot not in items or len(question.item_ids) != 1 or
-                    len(linked) > min(39, len(items) - 1)):
-                raise ValueError('Linked questions require one primary row and distinct row fields.')
-            seen = {(question.item_ids[0], question.slot)}
+            maximum = len(roots) + config['demo']['collection_max_items'] * len(items)
+            if len(linked) > min(39, maximum - 1):
+                raise ValueError('Linked questions exceed the configured address limit.')
+            seen = {(question.item_ids[0] if question.item_ids else None, question.slot)}
             for address in linked:
                 pair = (address.item_id, address.slot)
-                if address.item_id != question.item_ids[0] or address.slot not in items or pair in seen:
-                    raise ValueError('Linked fields must be unique companions in the same row.')
+                if (address.slot not in slots or (address.slot in roots) != (address.item_id is None) or pair in seen):
+                    raise ValueError('Linked companions require distinct valid root or row addresses excluding the primary.')
                 seen.add(pair)
     return response
 
@@ -175,9 +175,10 @@ def collection_response_format(config):
 
     maximum = config['demo']['collection_max_items']
     item_field = {'type': 'string', 'enum': items}
-    address = _object(dict(item_id=positive_id, slot=item_field))
+    address = _object(dict(item_id={'anyOf': [positive_id, null]}, slot=field))
+    maximum_addresses = len(roots) + maximum * len(items)
     linked = {'anyOf': [{'type': 'array', 'items': address,
-                        'maxItems': min(39, len(items) - 1)}, null]}
+                        'maxItems': min(39, maximum_addresses - 1)}, null]}
     unlinked = {'anyOf': [{'type': 'array', 'items': address, 'maxItems': 0}, null]}
     questions = [question('ambiguous_value', field, ids(0, 1), linked),
                  question('unsupported_value', field, ids(0, 1), unlinked),
@@ -237,8 +238,9 @@ Corrections target only explicitly identified fields/rows. Root details remain s
 
 QUESTION AND DRAFT RULES
 Before returning an ambiguous_value question, check whether the alternatives
-change MORE THAN ONE field on the same row. If they do, the first question MUST
-list all other dependent row fields in linked_addresses. This is required even
+change MORE THAN ONE addressed field, across identified rows or root details.
+If they do, the first question MUST list all other dependent addresses in
+linked_addresses. This is required even
 when those fields already have saved values. A single-field question with null
 linked_addresses preserves all other old fields and can create a combination
 the user never offered. Do not use it for a multi-field alternative.
@@ -254,13 +256,15 @@ configured value: intent=ambiguous or out_of_scope respectively, ops=[], no affi
 A root value question has item_ids=[]; a row value question has exactly one known row
 ID. Use unintelligible with intent=unclear when the utterance cannot be interpreted.
 All clarifications have exactly kind, slot, item_ids and linked_addresses. Normally
-linked_addresses is null. For dependent alternatives within ONE identified row,
-ask one ambiguous_value field and list its companion fields as exact objects
-{item_id: the same row ID, slot: companion row field}. Do not repeat the primary
-field, use root fields, or link different rows. For example, choosing a new asset
+linked_addresses is null. For dependent alternatives, ask one ambiguous_value
+field and list its companions as exact objects {item_id, slot}: null item_id for
+a configured root field, or a known positive row ID for a configured row field.
+Distinct rows may link the same field name; do not repeat an exact address or the
+primary address. Every linked row must exist in committed state or the validated
+initial proposed creates. For example, choosing a new asset
 does not choose its associated quantity. There is no coupled_slots contract here.
-Cross-row/root linked alternatives are unsupported: do not select or stage pieces
-as if independent. Request a complete explicit alternative without changing facts.
+Link all dependent row and root fields rather than treating pieces as independent.
+Do not infer a package of companion values from one selected alternative.
 
 For an initial ambiguous_value or unsupported_value question, clearly extracted
 independent facts may be put in proposed_ops, never ops. They remain uncommitted.
@@ -276,8 +280,9 @@ answers count, including for optional fields; inherited old values do not count.
 Answer the current scope under its current question ID. You may supply explicitly
 stated companion values too. Partial answers are staged and the engine asks the
 next unanswered field with a fresh ID. Never invent completion metadata or infer
-an unspoken companion value from a selected option. Deleting the linked row or
-clearing/removing its linked fields cannot resolve the group; discard it explicitly.
+an unspoken companion value from a selected option. Deleting ANY participating row
+or clearing/removing ANY linked field cannot resolve the group, including fields
+already answered in this draft; discard it explicitly before changing the group.
 
 If pending_proposal exists, context.state is its preview, committed_state is separate,
 and next_item_id refers to the preview allocator. Emit only NEW answer/edits; never

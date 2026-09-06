@@ -14,6 +14,9 @@ def visible_proposal_state(proposal, collection=None):
         values.pop(field, None)
     if collection:
         for address in proposal.get('remaining_addresses', []):
+            if address['item_id'] is None:
+                values.pop(address['slot'], None)
+                continue
             for row in values.get(collection, []):
                 if row['id'] == address['item_id']:
                     row.pop(address['slot'], None)

@@ -23,14 +23,17 @@ the pizza demo does not place orders.
   adapter with validated operations, correction handling and separate pending/
   committed values. A collection can contain repeated rows plus shared root fields;
   its router, readback, UI and recovery use the configured field names.
-- Same-row linked choices hold all declared fields in a draft until explicitly
-  answered, with fresh question IDs and masked unresolved preview fields. Exact
+- Linked choices across configured collection rows and shared root fields hold
+  all declared addresses in one draft until explicitly answered, with fresh
+  question IDs and masked unresolved previews. Exact
   configured enum/integer answers can resolve the current linked question locally;
   the same matcher handles flat clinic coupled questions. Evidence separates
   these lookups from Groq requests; it does not guess dates, times or ASR aliases.
 - Recognized router schema-configuration errors stop immediately with a static
   setup message instead of retrying an identical request or asking for repeated
   speech. Other error shapes keep the existing retry behavior.
+- Router duration telemetry uses a high-resolution performance clock with explicit
+  provenance, preserving submillisecond local lookup measurements on Windows.
 - Conditional clarification schema: ambiguous values require an affected field.
   Dependent alternatives are not silently selected or committed.
 - Explicit **Continue saved details** after an eligible provider failure. Recovery
@@ -42,13 +45,20 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1243 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1283 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
 previews, configured labels and desktop/mobile layout. Temporary English equipment
 fixtures test original and renamed field IDs; they are not a shipped voice domain.
-Cross-row coupled choices are not supported by the new collection adapter yet.
+Cross-row and root linkage now share the same explicit address-coverage contract.
+Thirty-four new offline cases cover root/row scopes, held partial answers, atomic
+completion, cancellation and committed-only recovery. Fifteen additional mocked
+browser checks verify root/row preview separation and desktop/mobile display.
+These checks do not establish that a model always identifies the dependency.
+One frozen English live opening for the extension failed local response validation
+and left the saved state unchanged. The diagnostic did not capture the raw model
+output, so its specific failed rule is unresolved; no repeat attempt was made.
 The new collection router passed one real English API compatibility check after
 fixing an overlapping-union HTTP400 rejection. Its strict wire schema constrains
 structure and configured names; local parsing validates root/row relationships
@@ -65,6 +75,12 @@ time question without an API request. A separate two-call actual MoulSot check
 on a frozen short synthetic doctor-name clip failed: vocabulary context inserted
 both doctor options instead of producing one exact alias. Context remains off;
 this result does not establish a native speech improvement.
+A separate offline audit using the actual installed Silero VAD retained the short
+clip as one segment, discarding its first 32 ms. Whether those samples contain
+important speech remains unreviewed; the original full-file recognition failure
+was independent of endpointing. No VAD or gain change follows from this result.
+The router clock correction passed 6 new tests and 65 relevant tests total; this
+is measurement validation, not evidence of faster voice conversations.
 The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.

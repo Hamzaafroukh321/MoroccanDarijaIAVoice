@@ -499,9 +499,14 @@ function showProposal(proposal) {
   if (values) unresolved.forEach(field => { delete values[field]; });
   const unresolvedLabels = unresolved.map(field => demoLabels[field] || field);
   if (values && demoStateKind === 'configured_collection_scoped' && demoCollection &&
-      Array.isArray(values[demoCollection.name]) && Array.isArray(proposal?.remaining_addresses)) {
-    const rows = values[demoCollection.name];
+      Array.isArray(proposal?.remaining_addresses)) {
+    const rows = Array.isArray(values[demoCollection.name]) ? values[demoCollection.name] : [];
     for (const address of proposal.remaining_addresses) {
+      if (address?.item_id === null && demoCollection.root_slots.includes(address.slot)) {
+        delete values[address.slot];
+        unresolvedLabels.push(demoLabels[address.slot] || address.slot);
+        continue;
+      }
       if (!address || !demoCollection.item_slots.includes(address.slot)) continue;
       const index = rows.findIndex(item => item.id === address.item_id);
       if (index < 0) continue;
