@@ -105,10 +105,14 @@ def demo_config(config):
             raise ValueError(f'Preview slot override cannot change the identity of {slot_id}.')
     for slot in result['slots']:
         slot.update(deepcopy(overrides.get(slot['id'],{})))
+    # Validate the effective requirements used by the adapter. A collection can
+    # make a base-optional row field mandatory through its preview profile.
+    required = settings.get('required_slots', [])
+    if isinstance(required, list):
+        for slot in result['slots']:
+            if slot['id'] in required and type(slot.get('required')) is bool:
+                slot['required'] = True
     validate_demo_config(result)
-    for slot in result['slots']:
-        if slot['id'] in settings.get('required_slots',[]):
-            slot['required'] = True
     settings['menu_options']={slot['id']:[settings['values'].get(value,value) for value in slot.get('values',[])] for slot in result['slots']}
     # One MoulSot call per finished turn. No speculative ASR calls against ZeroGPU.
     result['endpointing'].update(base_silence_ms=settings['base_silence_ms'],

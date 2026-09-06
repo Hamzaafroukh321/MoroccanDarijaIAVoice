@@ -262,11 +262,19 @@ def test_collection_wire_schema_and_parser_enforce_configured_field_addressing(c
     parsed = parse_collection_response(json.dumps(valid), config)
     task = make_task(config)
     assert task.consume(parsed.model_dump()).kind == 'readback'
+    # Groq accepts a structural object schema. Address/type relationships remain
+    # authoritative local parser checks rather than overlapping object unions.
     for invalid in [response(ops=[op('set', None, names['asset'], 'camera')]),
         response(ops=[op('set', 1, names['date'], '2026-09-15')]),
-        response(ops=[op('set', True, names['asset'], 'camera')]),
         response(intent='ambiguous', clarification=dict(kind='ambiguous_value', slot=names['asset'], item_ids=[])),
-        response(intent='ambiguous', clarification=dict(kind='ambiguous_value', slot=names['date'], item_ids=[1]))]:
+        response(intent='ambiguous', clarification=dict(kind='ambiguous_value', slot=names['date'], item_ids=[1])),
+        response(ops=[op('clear', 1, names['asset'], 'camera')])]:
+        validator.validate(invalid)
+        with pytest.raises(ValueError):
+            parse_collection_response(json.dumps(invalid), config)
+    for invalid in [response(ops=[op('set', True, names['asset'], 'camera')]),
+        response(intent='ambiguous', clarification=dict(kind='ambiguous_value', slot=None, item_ids=[])),
+        response(intent='out_of_scope', clarification=dict(kind='unsupported_value', slot=None, item_ids=[]))]:
         assert not validator.is_valid(invalid)
         with pytest.raises(ValueError):
             parse_collection_response(json.dumps(invalid), config)
@@ -307,7 +315,8 @@ def test_real_router_sends_generic_collection_schema_and_retries_bad_addressing(
     schema = observed['requests'][0]['response_format']['json_schema']['schema']
     validator = Draft202012Validator(schema)
     validator.validate(good)
-    assert not validator.is_valid(bad)
+    # Wire-valid structural output still requires local addressing validation.
+    validator.validate(bad)
     messages = observed['requests'][0]['messages']
     assert names['collection'] in messages[0]['content']
     assert messages[-1] == {'role': 'user', 'content': 'camera quantity one return September fifteen'}
@@ -364,3 +373,73 @@ def test_real_router_stale_retained_request_discard_exhausts_without_mutation(ca
         [response(discard_request='request_7')], {}))
     task.consume(valid.model_dump(), retained_request=context['pending_request'])
     assert task.values == before['values'] and task.version == before['version'] + 1
+
+
+def test_profile_required_row_promotion_is_validated_after_effective_settings(case):
+    names = case['names']
+    base, profile = deepcopy(case['base']), deepcopy(case['profile'])
+    for slot in base['slots']:
+        if slot['id'] in (names['asset'], names['quantity']):
+            slot['required'] = False
+    profile['required_slots'] = [names['asset'], names['date']]
+    case['config_path'].write_text(json.dumps(base), encoding='utf-8')
+    case['profile_path'].write_text(json.dumps(profile), encoding='utf-8')
+    original = load_config(case['config_path'])
+    config = demo.demo_config(original)
+    flags = {slot['id']: slot['required'] for slot in config['slots']}
+    assert flags[names['asset']] is True and flags[names['quantity']] is False
+    assert all(not slot['required'] for slot in original['slots'] if slot['id'] != names['date'])
+    task = make_task(config)
+    assert task.next_action().slot == names['asset'] and task.next_action().item_id == 1
+    task.apply([op('create', 1), op('set', 1, names['asset'], 'camera'),
+                op('set', None, names['date'], '2026-09-15')])
+    assert task.ready and task.next_action().kind == 'readback'
+
+
+def test_profile_without_any_effectively_required_row_field_still_rejects(case):
+    names = case['names']
+    base, profile = deepcopy(case['base']), deepcopy(case['profile'])
+    for slot in base['slots']:
+        if slot['id'] in (names['asset'], names['quantity']):
+            slot['required'] = False
+    profile['required_slots'] = [names['date']]
+    case['config_path'].write_text(json.dumps(base), encoding='utf-8')
+    case['profile_path'].write_text(json.dumps(profile), encoding='utf-8')
+    with pytest.raises(ValueError, match='(?i)required row'):
+        config_for(case)
+
+
+def test_required_promotion_does_not_hide_a_malformed_override_flag(case):
+    names = case['names']
+    profile = deepcopy(case['profile'])
+    profile['slot_overrides'][names['asset']] = {'required': 'false'}
+    assert names['asset'] in profile['required_slots']
+    case['profile_path'].write_text(json.dumps(profile), encoding='utf-8')
+    with pytest.raises(ValueError, match='(?i)required|boolean'):
+        config_for(case)
+
+
+def test_wire_object_unions_have_no_overlapping_operation_or_kind_discriminators(case):
+    from engine.collection_routing import collection_response_format
+    schema = collection_response_format(config_for(case))['json_schema']['schema']
+    seen_discriminators = set()
+    def inspect(node):
+        if isinstance(node, dict):
+            if node.get('type') == 'object':
+                assert node.get('additionalProperties') is False
+                assert set(node['required']) == set(node['properties'])
+            for keyword in ('anyOf', 'oneOf'):
+                branches = [branch for branch in node.get(keyword, []) if branch.get('type') == 'object']
+                if len(branches) > 1:
+                    for key in ('op', 'kind'):
+                        if all('enum' in branch.get('properties', {}).get(key, {}) for branch in branches):
+                            choices = [choice for branch in branches for choice in branch['properties'][key]['enum']]
+                            assert len(choices) == len(set(choices)), (key, choices)
+                            seen_discriminators.add(key)
+            for value in node.values():
+                inspect(value)
+        elif isinstance(node, list):
+            for value in node:
+                inspect(value)
+    inspect(schema)
+    assert 'kind' in seen_discriminators

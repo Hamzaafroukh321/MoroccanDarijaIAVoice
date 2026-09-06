@@ -34,13 +34,17 @@ the pizza demo does not place orders.
 
 ## Verification and limits
 
-The latest September 6, 2026 local suite passed **1071 tests, with 1 skipped native-review
+The latest September 6, 2026 local suite passed **1079 tests, with 1 skipped native-review
 fixture**. Eleven browser recovery checks passed using mocked microphone/socket
 events. These establish engineering behavior, not native speech accuracy.
 Nine additional mocked-browser collection checks cover distinct rows, pending
 previews, configured labels and desktop/mobile layout. Temporary English equipment
 fixtures test original and renamed field IDs; they are not a shipped voice domain.
 Cross-row coupled choices are not supported by the new collection adapter yet.
+The new collection router passed one real English API compatibility check after
+fixing an overlapping-union HTTP400 rejection. Its strict wire schema constrains
+structure and configured names; local parsing validates root/row relationships
+before atomic state application. This check made no speech calls.
 The earlier published source-only Git export passed 842 tests with the same single skip
 after aligning the profiling artifact checksum with Git's canonical LF files.
 No local recordings, `.env` file or model downloads were included in that export.

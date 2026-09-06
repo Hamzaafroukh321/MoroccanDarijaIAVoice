@@ -129,24 +129,21 @@ def _object(properties):
 
 
 def collection_response_format(config):
-    """Inline conditional objects avoid a referenced-union provider limitation."""
+    """Strict wire shapes; configured address relationships are checked locally.
+
+    Groq's union compiler rejects root/row operation variants sharing the same
+    op discriminator. Keep one operation shape and retain parse/state validation
+    for cross-field relationships instead of weakening those invariants.
+    """
     schema = validate_collection_schema(config)
     roots, items = schema['root_slots'], schema['item_slots']
     null = {'type': 'null'}
     positive_id = {'type': 'integer', 'minimum': 1}
     value = {'anyOf': [{'type': 'string'}, {'type': 'integer'},
                        {'type': 'array', 'items': {'type': 'string'}}, null]}
-    operations = [_object(dict(op={'type': 'string', 'enum': ['create', 'delete']},
-        item_id=positive_id, slot=null, value=null))]
-    for fields, address in ((roots, null), (items, positive_id)):
-        if not fields:
-            continue
-        field = {'type': 'string', 'enum': fields}
-        operations.extend([
-            _object(dict(op={'type': 'string', 'enum': ['set', 'add', 'remove']},
-                         item_id=address, slot=field, value=value)),
-            _object(dict(op={'type': 'string', 'enum': ['clear']},
-                         item_id=address, slot=field, value=null))])
+    field = {'type': 'string', 'enum': [*roots, *items]}
+    operation = _object(dict(op={'type': 'string', 'enum': ['create', 'delete', 'set', 'add', 'remove', 'clear']},
+        item_id={'anyOf': [positive_id, null]}, slot={'anyOf': [field, null]}, value=value))
 
     def ids(minimum, maximum):
         return {'type': 'array', 'items': positive_id, 'minItems': minimum, 'maxItems': maximum}
@@ -156,22 +153,17 @@ def collection_response_format(config):
 
     maximum = config['demo']['collection_max_items']
     item_field = {'type': 'string', 'enum': items}
-    questions = [question(['ambiguous_value', 'unsupported_value'], item_field, ids(1, 1)),
+    questions = [question(['ambiguous_value', 'unsupported_value'], field, ids(0, 1)),
                  question(['item_reference'], {'anyOf': [item_field, null]}, ids(1, maximum)),
-                 question(['unintelligible'], item_field, ids(1, 1)),
-                 question(['unintelligible'], null, ids(0, maximum))]
-    if roots:
-        root_field = {'type': 'string', 'enum': roots}
-        questions.extend([question(['ambiguous_value', 'unsupported_value'], root_field, ids(0, 0)),
-                          question(['unintelligible'], root_field, ids(0, 0))])
+                 question(['unintelligible'], {'anyOf': [field, null]}, ids(0, maximum))]
     properties = dict(
-        ops={'type': 'array', 'items': {'anyOf': operations}, 'maxItems': 40},
+        ops={'type': 'array', 'items': operation, 'maxItems': 40},
         confidence={'type': 'number', 'minimum': 0, 'maximum': 1},
         unclear={'type': 'boolean'}, is_affirmation={'type': 'boolean'}, is_negation={'type': 'boolean'},
         intent={'type': 'string', 'enum': ['task', 'greeting', 'help', 'out_of_scope', 'ambiguous', 'unclear']},
         clarification={'anyOf': [*questions, null]},
         resolves_clarification={'anyOf': [positive_id, null]},
-        proposed_ops={'type': 'array', 'items': {'anyOf': deepcopy(operations)}, 'maxItems': 40},
+        proposed_ops={'type': 'array', 'items': deepcopy(operation), 'maxItems': 40},
         discard_clarification={'anyOf': [positive_id, null]},
         discard_request={'anyOf': [{'type': 'string', 'minLength': 1}, null]})
     return {'type': 'json_schema', 'json_schema': {

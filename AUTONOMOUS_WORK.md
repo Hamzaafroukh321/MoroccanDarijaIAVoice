@@ -48,11 +48,22 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
    updates, draft isolation, corrections and fresh confirmation. Nine mocked
    browser checks passed. This is not a shipped third voice demo.
 
-   **Next independent offline step:** examine cross-row linked-choice semantics
-   with explicit row/field addresses before extending the clarification contract.
-   Start with a bounded failure fixture and design review. The current adapter
-   rejects flat coupled_slots; do not silently infer dependent alternatives or
-   alter the existing successful pizza/clinic speech scripts.
+   Completed: the live collection schema HTTP400 was caused by overlapping op
+   discriminators. One strict operation shape plus unique-kind question branches
+   fixes compatibility, preserving local address/type and atomic-state validation.
+   One repaired request passed HTTP200 in1.484s with separate camera1/tripod2 rows,
+   shared return date and unconfirmed readback. Three total Groq diagnostic calls,
+   zero ASR/TTS; English engineering evidence, not native accuracy. See
+   bench/results/collection_schema_fixed_20260906.json and the preserved failures.
+   Required-field validation now uses effective profile requirements before
+   checking collection readiness; malformed flag types still reject.
+   Latest full local suite1079passed/1native-review skip (38.95s).
+   The linked-address design is complete in
+   bench/results/collection_linked_addresses_design_20260906.md; it recommends
+   same-row linked fields first, with explicit row/field coverage in one draft.
+   **Next:** implement and verify the same-row linked-address contract offline.
+   Cross-row/root links remain unsupported. Do not silently reuse flat
+   coupled_slots or alter successful pizza/clinic speech scripts.
    Native speech quality still needs owner-supplied reviewed cases/recordings.
 
    Completed: explicit coupled_slots in flat clarification, atomic staged answers,
@@ -101,7 +112,7 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
   bench/results/supervisor_status_failure_20260906.md. Exact lock owner unknown.
   Whole readback remains default; conditional clarification schema, bounded retry
   explicit enum guard, coupled-field staging and saved-detail recovery are active.
-  Latest complete suite1001passed/1native-review skip (30.14s), including46 context
+  Runtime checkpoint suite1001passed/1native-review skip (30.14s), including46 context
   transport/preflight cases, native Windows sharing semantics and coupled-error
   preservation. An initial full run exposed an overly exact timing assertion in
   a transport fixture; deterministic pacing and delayed-ACK controls corrected
@@ -138,8 +149,10 @@ the five-minute heartbeat resumes work after a turn ends, not a work-duration ca
 - Earlier clinic checkpoint:719passed/1skipped,14 known warnings,41.16s. The skipped
   native-reviewed number fixture and base research gates remain pending.
 
-- The user explicitly requested a GitHub snapshot; it was pushed to
-  Hamzaafroukh321/MoroccanDarijaIAVoice main atfdec1fe. An earlier clean source-only export
+- The user explicitly requested the latest GitHub snapshot; it was pushed to
+  Hamzaafroukh321/MoroccanDarijaIAVoice main at7b45825, verified against the remote.
+  That source checkpoint passed1071tests/1native-review skip. The running server
+  predates its configurable collection extension. An earlier clean source-only export
   passed842/1skip after LF checksum correction. Later autonomous changes remain
   local unless separately authorized for publication; no automatic force pushes.
 
